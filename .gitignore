@@ -1,0 +1,4 @@
+# Sibling application repositories: each has its own git history and remote
+# (paws1234/ERPbackend, paws1234/ERPfrontend). Never commit them here.
+ERPbackend/
+ERPfrontend/
