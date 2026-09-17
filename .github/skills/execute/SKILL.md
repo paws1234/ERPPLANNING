@@ -141,6 +141,11 @@ T-<Phase>.<Stream>.<Seq>
 - Seq: zero-padded sequence
 - GATE ids: T-<Phase>.X.GATE
 
+## Repositories
+- <repo> — local path, remote, state, and which tasks land in it
+- Planning repository: <path> — holds the plan and this ledger
+- Routing: backend/API tasks → the backend repository; frontend/UI tasks → the frontend repository; a task spanning both names both halves
+
 ## Cross-cutting / foundations
 #### Task ID: T-0.<Stream>.<Seq>
 ...
@@ -169,6 +174,7 @@ T-<Phase>.<Stream>.<Seq>
 - Every named capability in the plan becomes at least one task.
 - Every named entity/schema/artifact gets a create/define task before use.
 - Every metric becomes acceptance criteria on the relevant task **and** on the phase gate.
+- When the work spans several repositories, the ledger carries a `## Repositories` section that routes **every** task to the repository its diff lands in, and no task is left unroutable. A single-repository project still states it in one line.
 - Prefer this expansion set when the plan is a build (omit categories that do not apply):
 
   1. Define / model
@@ -188,7 +194,7 @@ When `tasks.md` is written, the run is over:
 
 1. Confirm the ledger covers the **whole** plan — every module, phase, entity, variable, metric, dependency, and gate.
 2. Leave **every** task `TODO`. Do not mark `DOING` or `DONE`. Do not pre-verify anything “to be safe”.
-3. Report: ledger path, task count per phase, the gates, the **first runnable id**, and any Open Questions or conflicts found.
+3. Report: ledger path, task count per phase, the gates, the **first runnable id**, the **repository that first runnable id lands in** (when the ledger spans repositories), and any Open Questions or conflicts found.
 4. Hand off: the next command is `/do-task` — **one task per run**.
 
 **Do not implement, even a little.** Not `T-0.01`, not a stub, not an empty folder, not a config file, not a “quick” dependency install, not a scratch test “to check the ledger holds together”. The first line of product code written during this run is a bug in this command.

@@ -47,6 +47,21 @@ It does **not** re-plan. It does **not** expand scope. It does **not** batch tas
 
 ---
 
+## Where the code goes (repository routing)
+
+The ledger may span several repositories. **Read `tasks.md`'s `## Repositories` section before writing anything** — it names each repository, its local path, and which tasks land in it.
+
+- **Backend/API work goes to the backend repository. Frontend/UI work goes to the frontend repository.** Never the other way round, and never both in one commit.
+- **Never write application code into the planning repository.** It holds the plan, the ledger and these skills — nothing else. If a task seems to need code there, stop and ask.
+- A task whose scope names both halves (a client plus its API) is still **one task**: it produces one commit per repository, in the same run, and the report names both.
+- **If the ledger has no `## Repositories` section, or a task cannot be routed to a repository it names — stop and ask.** Do not guess a repository, create one, move one, or add a remote on your own initiative.
+- Run the target repository's own commands (`git status`, existing-file checks, the build) with that repository as the working directory — never assume the workspace root is the repository.
+- Before marking anything `DONE`, confirm each changed file sits in the repository the ledger names, and report the repository with each path.
+
+In this workspace that means: API/backend work lands in `ERPbackend`, frontend/UI work in `ERPfrontend`, and the plan, ledger and skills in the planning repository at the workspace root. The ledger's map is still the authority — if it and this line ever disagree, the ledger wins and the disagreement is a finding to report.
+
+---
+
 ## Invocation
 
 | User says | Agent does |
@@ -76,7 +91,7 @@ Read **all** of `tasks.md`. Build an inventory:
 | Scope / variables | listed bounds |
 | Evidence | how done is proven |
 
-Print a short inventory (id, status, blocked-by) before choosing work.
+Print a short inventory (id, status, blocked-by) before choosing work. Also read the ledger's `## Repositories` section: it decides which repository this run's diff lands in, and it is the only authority for that.
 
 ### Current task
 
@@ -232,6 +247,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Fix a symptom in one caller and leave the others
 - Skip Phase A/B (ledger + already-implemented scan)
 - Skip tracing the real flow
+- Write application code into the wrong repository, into the planning repository, or into a repository the ledger does not name
 
 ---
 

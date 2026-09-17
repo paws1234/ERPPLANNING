@@ -56,6 +56,20 @@ If a heading below is absent from your plan, `/execute` will infer conservativel
 
 ---
 
+## Repository routing (record it in the plan)
+
+A `/do-task` run writes real code, so the plan must say **where** that code lives. Discover the workspace layout before writing, and record it in §1 of the plan:
+
+- **Which repositories exist** — local path, remote, and what each one owns.
+- **Which one holds this plan and its ledger** (the planning repository).
+- **Which folders the planning repository ignores** (its `.gitignore`) — those belong to other repositories and must never be committed here.
+
+When the workspace holds more than one application repository, **every module and every phase must be routable to exactly one of them** — the API/backend work to the backend repository, the frontend/UI work to the frontend repository. Server-side code never lands in the frontend repository and vice versa. A phase that genuinely spans both says so and names both halves.
+
+If the plan is silent on routing, `/do-task` has to guess — which is how code ends up in the wrong repository. Record the layout even when it is a single repository; "one repository, at `<path>`" is a valid answer.
+
+---
+
 ## Phase A — Understand the subject (before writing)
 
 1. Restate what is being planned in one sentence. If the request is ambiguous about **what** or **for whom**, ask — once, with the options, not a questionnaire.
@@ -85,6 +99,11 @@ Never invent features, modules, metrics, or constraints that were not asked for 
 **High-Level Modules**
 1. <named module>
 2. <named module>
+
+**Repositories** (when the work spans more than one)
+- <repo> — local path, remote, and what lands in it
+- <repo> — second repository, same shape
+- Planning repository: <path> — holds this plan and its ledger; ignores the app folders above
 
 ---
 
