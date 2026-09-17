@@ -271,10 +271,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: none beyond the posting primitive's contract.
 - **Dependencies**: T-0.STACK.01
 - **Acceptance Criteria**: Strategy names the three layers with what belongs in each; a runnable check fails when a deliberately unbalanced entry is injected; the check scans the stored ledger (not just the API responses) and reports any imbalance.
-- **Evidence**: The check executed in CI (green on a clean ledger, red on the injected imbalance).
+- **Evidence**: `ERPbackend/TESTING.md` (the strategy: the three layers and what belongs in each) plus the harness `ERPbackend/tests/check_ledger_integrity.py` — `ledger_gate(connection)` scans the **stored** `journal_entry` / `journal_line` rows, never API responses, and returns `1` after reporting every entry that does not balance or has fewer than two lines. Run 2026-09-17 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_ledger_integrity.py`, exit 0): **green on a clean ledger** (one real posting through `post_journal_entry`, gate returns 0); **red on a deliberately injected** entry — reported as `2 line(s), debit 10.000000 <> credit 9.000000` — and on an entry with no lines (`0 line(s)`), each injected with the tables' `TRIGGER USER` disabled (the way a restored dump or hand-edit arrives) and rolled back so nothing survives; the run fails if either injection is not reported. Wiring the layers into a pipeline is T-0.CICD.01 — no CI exists yet, so the evidence is the executed check.
 - **Estimated Effort**: M
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-0.CORE.03
 - **Title**: Company and fiscal calendar master (multi-company scoping)
