@@ -206,6 +206,17 @@ For **each** selected id, in dependency order, sequentially — never in paralle
 
 **Never** run two tasks as one diff; never write one task's code under another's id; never let a task grow outside its ledger scope merely because the batch is large.
 
+### Run the pipeline's checks — locally, before the commit (every id, never skipped)
+
+An id's own check is not enough. **Whatever the repository's pipeline runs on the remote, run locally — in every repository the batch changed, after that id's last edit, and before anything is committed.**
+
+* **The pipeline file is the source of truth for the commands.** Read `.github/workflows/*.yml` (or whatever the remote calls it) and run what its jobs run. In this workspace: the backend's loop over `tests/check_*.py` plus the ledger-integrity gate against a scratch database, and the frontend's `npm run check`. What the pipeline excludes by name is excluded locally for the same reason.
+* **Parity with CI, not comfort.** The dependency file the pipeline installs, the same Python/Node major, a throwaway database and a throwaway venv.
+* **After the last edit and before `git add`.** A run that skipped the fix you just made is not evidence, and a red commit is already on the remote — a red `main` is a broken `main`.
+* **A red pipeline run stops the batch**, exactly like an out-of-scope failing check: fix it if it is inside the id's scope, otherwise report it and stop. It is never something to hand off, and never something to “fix in the next commit”.
+* **Every id re-runs it** after its own edits — an earlier id's green run does not cover a later id's diff.
+* The batch summary names the pipeline commands that ran and what they printed.
+
 ### Stop conditions mid-batch
 
 Stop the batch — do not start the next id — and report, when any of these is true:
@@ -228,9 +239,10 @@ Before the hand-off:
 
 1. Every selected id has a final status and recorded evidence
 2. Per id: scope not exceeded, the check exists where logic was non-trivial and was run, no unrequested dependency, ponytails present
-3. The batch summary table: id · status · repository · files · check · evidence
-4. The ids that stopped early, with the reason and what remains queued
-5. Nothing outside the selection was written
+3. **The pipeline's own checks were run locally in every repository the batch changed, after each id's last edit, and they are green** — the batch is never handed off on a red pipeline
+4. The batch summary table: id · status · repository · files · check · evidence
+5. The ids that stopped early, with the reason and what remains queued
+6. Nothing outside the selection was written
 
 ---
 
@@ -252,6 +264,7 @@ Before the hand-off:
 
 ### Branching and commits
 
+- **Before staging anything: the pipeline's checks pass locally** (*Phase D* — “Run the pipeline's checks”), in every repository the batch changed. If any file changed after that run, run it again; it covers the state being committed, not the state that was checked an hour ago. Committing a change whose pipeline is red — or that was never run through it — is not allowed, and neither is leaving it for the remote to discover.
 - **One branch per repository for the whole batch**, named `one-go/<first-task-id>` (e.g. `one-go/T-0.API.01`). The batch is reviewed as one MR/PR per repository, not one per task.
 - **One commit per task, per repository**, in run order. Subject `T-<id>: <what changed>` unless the repository's own convention differs (a `CONTRIBUTING.md`, a visible history). The task id appears in the message, so each commit and its ledger evidence are findable from each other.
 - The ledger update for a task belongs in the **planning repository's** commit for that task — not left floating in the working tree.
@@ -267,6 +280,7 @@ Before the hand-off:
 
 - Force-push, amend, rebase or otherwise rewrite pushed history
 - `--no-verify`, a hooks-path override, or any flag that skips a check — if a hook fails, stop and report it
+- Commit, push or hand off a change whose pipeline's own checks were not run locally, or that is red locally — the remote is not the place to find out
 - Add, change or remove a remote, or push to a repository the ledger does not name
 - Commit files a task did not change, or as another author
 - Treat silence as consent: an unanswered ask leaves the work uncommitted
@@ -296,6 +310,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Read "do several tasks" as "do everything", or read `all` as more than the set printed in Phase B
 - Start any work while the selection question is unanswered
 - Skip the per-task already-implemented proof, the ladder, the trace of the real flow, the one-runnable-check rule, or the repository routing — a batch is not a licence to move faster per task
+- **Commit or push a diff whose pipeline's own checks were not run locally, or that is red** — and never treat an earlier id's green run as covering a later id's diff
 - Run tasks in parallel, or fold two tasks into one diff or one commit
 - Continue past a stop condition, or substitute a different task for the one that stopped
 - Add "helpful" layers, folders, frameworks or config a task did not name

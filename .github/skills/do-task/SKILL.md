@@ -43,8 +43,9 @@ The rest of this file may only ever act on that single id.
 7. If yes → mark `DONE`, do not rewrite it
 8. If no → climb the ladder, then ship the **shortest working diff** that meets acceptance criteria
 9. Leaves **one runnable check** for non-trivial logic
-10. **Ends with the hand-off ask** — every finished task's last act is asking to **commit, push and open the MR/PR** (Phase F). Nothing leaves the machine before that answer
-11. **Stops.** The next task waits for the next invocation
+10. **Runs what the pipeline runs, locally** — the repository's own checks, after the last edit and **before anything is committed**, so a red pipeline is found here and never on the remote (*Phase D — “Run the pipeline's checks”*)
+11. **Ends with the hand-off ask** — every finished task's last act is asking to **commit, push and open the MR/PR** (Phase F). Nothing leaves the machine before that answer
+12. **Stops.** The next task waits for the next invocation
 
 It does **not** re-plan. It does **not** expand scope. It does **not** batch tasks. It does **not** “while we’re here” neighboring tasks.
 
@@ -235,6 +236,16 @@ Lazy code without its check is **unfinished**.
 
 Do not add a test suite, harness, or factory. One check.
 
+### Run the pipeline's checks — locally, before the commit (never skip)
+
+A task's own check is not enough. **Whatever the repository's pipeline runs on the remote, run locally — in every repository this run changed, after the last edit, and before anything is committed.**
+
+* **The pipeline file is the source of truth for the commands.** Read `.github/workflows/*.yml` (or whatever the remote calls it) and run what its jobs run. In this workspace: the backend's loop over `tests/check_*.py` plus the ledger-integrity gate against a scratch database, and the frontend's `npm run check`. What the pipeline excludes by name is excluded locally for the same reason.
+* **Parity with CI, not comfort.** The dependency file the pipeline installs, the same Python/Node major, a throwaway database and a throwaway venv.
+* **After the last edit and before `git add`.** A run that skipped the fix you just made is not evidence, and a red commit is already on the remote — a red `main` is a broken `main`.
+* **A red pipeline run stops the run.** Fix it before the hand-off ask, or report it and stop. It is never the reviewer's problem, and never something to "fix in the next commit".
+* The report names the pipeline commands that ran and what they printed.
+
 ---
 
 ## Phase E — Close the task
@@ -246,6 +257,7 @@ Before marking `DONE`:
 3. The one runnable check exists if logic was non-trivial — and it was run
 4. No new dependency unless the task named it and the ladder could not avoid it
 5. Ponytail comments present on any known-ceiling shortcut
+6. **The pipeline's own checks were run locally, after the last edit, in every repository this run changed — and they are green.** A task is not closed on a red pipeline:
 
 Then:
 
@@ -279,6 +291,7 @@ Then:
 
 **One commit per repository**
 
+- **Before staging anything: the pipeline's checks pass locally** (*Phase D* — “Run the pipeline's checks”). If any file changed after that run, run it again; it covers the state being committed, not the state that was checked an hour ago. Committing a change whose pipeline is red — or that was never run through it — is not allowed, and neither is leaving it for the remote to discover.
 - Run git with the repository as the working directory, one repository at a time. A task that touched several repositories produces **one commit in each**, in the same run, and the report names them all.
 - The ledger update (`tasks.md`) is part of this run's diff and belongs in the planning repository's commit — not left floating in the working tree.
 - **Stage only the files this task changed.** Never `git add -A`, `git add .` or `git commit -a`. Read `git status --short` and `git diff` in that repository first.
@@ -294,6 +307,7 @@ Then:
 - `--no-verify`, a hooks-path override, or any other flag that skips a check — if a hook fails, stop and report it
 - Add, change or remove a remote, or push to a repository the ledger does not name
 - Commit files the task did not change, or as another author
+- Commit, push or hand off a change whose pipeline's own checks were not run locally, or that is red locally — the remote is not the place to find out
 - Treat silence as consent: an unanswered ask leaves the work uncommitted
 - Substitute a smaller git action for the one asked — a local-only commit, a parked branch or an unasked push decided by the run itself
 
@@ -329,6 +343,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - **Do more than one task in a run.** Never drain the queue, never batch “while you’re in the file”, never chain into the next id — no wording from the user unlocks this; they re-run the command instead
 - Add “helpful” layers, folders, frameworks, or config the task did not name
 - Duplicate an existing helper
+- **Commit or push a diff whose pipeline's own checks were not run locally, or that is red** — the remote is not where a failure should be discovered
 - Fix a symptom in one caller and leave the others
 - Skip Phase A/B (ledger + already-implemented scan)
 - Skip tracing the real flow
