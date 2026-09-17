@@ -34,15 +34,16 @@ The rest of this file may only ever act on that single id.
 
 `/do-task`:
 
-1. Opens `tasks.md`
-2. Inventories **all** tasks and their statuses
-3. Identifies the **current** task (explicit id, or the next unfinished task in dependency order)
-4. Checks whether that work is **already implemented**
-5. If yes → mark `DONE`, do not rewrite it
-6. If no → climb the ladder, then ship the **shortest working diff** that meets acceptance criteria
-7. Leaves **one runnable check** for non-trivial logic
-8. **Asks** before the diff leaves the machine — commit, push and the MR/PR are the user's call, every run (Phase F)
-9. **Stops.** The next task waits for the next invocation
+1. **Starts on an up-to-date `main`** in every repository it will touch — switching to `main` first if the current branch is not it (*Start from main*, below)
+2. Opens `tasks.md`
+3. Inventories **all** tasks and their statuses
+4. Identifies the **current** task (explicit id, or the next unfinished task in dependency order)
+5. Checks whether that work is **already implemented**
+6. If yes → mark `DONE`, do not rewrite it
+7. If no → climb the ladder, then ship the **shortest working diff** that meets acceptance criteria
+8. Leaves **one runnable check** for non-trivial logic
+9. **Asks** before the diff leaves the machine — commit, push and the MR/PR are the user's call, every run (Phase F)
+10. **Stops.** The next task waits for the next invocation
 
 It does **not** re-plan. It does **not** expand scope. It does **not** batch tasks. It does **not** “while we’re here” neighboring tasks.
 
@@ -75,6 +76,22 @@ In this workspace that means: API/backend work lands in `ERPbackend`, frontend/U
 | `/do-task T-1.A.03 T-1.A.04` | `T-1.A.03` only; report `T-1.A.04` as still queued |
 
 If `tasks.md` is missing: stop. Tell the user to run `/execute plan.md` first to generate the ledger. Do **not** invent tasks.
+
+---
+
+## Start from main (every run, before Phase A)
+
+**Every `/do-task` invocation begins on an up-to-date `main`** — that is the state the ledger and the code are judged against. In **each** repository this run will read or write:
+
+1. Read the current branch: `git branch --show-current`
+2. If it is **not** `main`, switch: `git checkout main`
+3. Pull: `git pull --ff-only origin main`
+
+The repositories this run touches are the **planning repository** (the ledger and these skills live there) and the repository the chosen task lands in, per the `## Repositories` map. `--status` and `--check` runs sync too — they read the same ledger — but they write nothing.
+
+- **Never destroy or hide work to reach `main`.** No `git stash`, no `git checkout -- .`, no `reset`, no force. Read `git status --short` first: if the tree is not clean, **stop and ask the user** — an unfinished task branch or an unanswered Phase F hand-off is the usual reason, and that diff is the user's call, not the sync's.
+- `--ff-only` on purpose: if `main` has diverged, the pull fails loudly instead of quietly making a merge commit or a rebase. Report that rather than forcing it.
+- State in the report which repository started on which branch (and whether the pull brought anything new).
 
 ---
 
@@ -276,6 +293,8 @@ Ask the user with the chat question tool, naming the **exact repositories and fi
 
 Per repository: branch, commit hash, pushed or not, and the MR/PR URL — or that the hand-off was skipped, with the paths left uncommitted.
 
+Leaving a task branch checked out after this run is fine: the next run returns to `main` first (*Start from main*), so say which branch this run left each repository on.
+
 ---
 
 ## Status discipline
@@ -302,16 +321,18 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Write application code into the wrong repository, into the planning repository, or into a repository the ledger does not name
 - **Commit, push or open an MR/PR without the user's explicit yes in that same run** — consent is never inferred, never carried over from an earlier run, and never assumed from a standing instruction
 - Push a secret (every remote is public), `git add -A`, or force-push
+- Reach `main` by throwing work away — no `stash`, `reset`, `checkout -- .`, dirty-tree checkout or forced pull to clear the way (*Start from main*)
 
 ---
 
 ## Output of a successful `/do-task`
 
-1. Inventory snippet (all tasks / current)
-2. Already-implemented verdict
-3. Ladder rung used (1–7)
-4. Diff: fewest files, shortest working change (or no diff if already done)
-5. One runnable check (if non-trivial) — executed
-6. `tasks.md` updated for that id
-7. Hand-off: the ask, the user's answer, and per repository the branch, commit hash, push state and MR/PR URL — or that it was skipped and the paths are left uncommitted
-8. A closing line naming the **next** runnable id — reported, **not started**
+1. The repository/branch state it started from — `main` synced, or the dirty tree it stopped and asked about
+2. Inventory snippet (all tasks / current)
+3. Already-implemented verdict
+4. Ladder rung used (1–7)
+5. Diff: fewest files, shortest working change (or no diff if already done)
+6. One runnable check (if non-trivial) — executed
+7. `tasks.md` updated for that id
+8. Hand-off: the ask, the user's answer, and per repository the branch, commit hash, push state and MR/PR URL — or that it was skipped and the paths are left uncommitted
+9. A closing line naming the **next** runnable id — reported, **not started**
