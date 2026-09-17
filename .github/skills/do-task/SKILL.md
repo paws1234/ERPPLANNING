@@ -1,6 +1,6 @@
 ---
 name: do-task
-description: 'Do exactly ONE task from tasks.md per run: inventory the ledger, prove the task is not already implemented, climb the build ladder, ship the shortest working diff, then ask before committing, pushing or opening the MR/PR — and stop. Use for "/do-task", "do the next task", resume a DOING task, mark a task DONE, commit and push a finished task, open a PR/MR, or check task status.'
+description: 'Do exactly ONE task from tasks.md per run: inventory the ledger, prove the task is not already implemented, climb the build ladder, ship the shortest working diff, then — always, as the run''s final act — ask to commit, push and open the MR/PR before anything leaves the machine, and stop. Use for "/do-task", "do the next task", resume a DOING task, mark a task DONE, commit and push a finished task, open a PR/MR, or check task status.'
 argument-hint: '[task-id] [--status] [--check]'
 user-invocable: true
 disable-model-invocation: true
@@ -34,15 +34,17 @@ The rest of this file may only ever act on that single id.
 
 `/do-task`:
 
-1. Opens `tasks.md`
-2. Inventories **all** tasks and their statuses
-3. Identifies the **current** task (explicit id, or the next unfinished task in dependency order)
-4. Checks whether that work is **already implemented**
-5. If yes → mark `DONE`, do not rewrite it
-6. If no → climb the ladder, then ship the **shortest working diff** that meets acceptance criteria
-7. Leaves **one runnable check** for non-trivial logic
-8. **Asks** before the diff leaves the machine — commit, push and the MR/PR are the user's call, every run (Phase F)
-9. **Stops.** The next task waits for the next invocation
+1. **Checks for an outstanding hand-off first** — an unanswered ask is put again, unchanged, and nothing else happens until the user answers (*Outstanding hand-off*, below)
+2. **Starts on an up-to-date `main`** in every repository it will touch — switching to `main` first if the current branch is not it (*Start from main*, below)
+3. Opens `tasks.md`
+4. Inventories **all** tasks and their statuses
+5. Identifies the **current** task (explicit id, or the next unfinished task in dependency order)
+6. Checks whether that work is **already implemented**
+7. If yes → mark `DONE`, do not rewrite it
+8. If no → climb the ladder, then ship the **shortest working diff** that meets acceptance criteria
+9. Leaves **one runnable check** for non-trivial logic
+10. **Ends with the hand-off ask** — every finished task's last act is asking to **commit, push and open the MR/PR** (Phase F). Nothing leaves the machine before that answer
+11. **Stops.** The next task waits for the next invocation
 
 It does **not** re-plan. It does **not** expand scope. It does **not** batch tasks. It does **not** “while we’re here” neighboring tasks.
 
@@ -75,6 +77,32 @@ In this workspace that means: API/backend work lands in `ERPbackend`, frontend/U
 | `/do-task T-1.A.03 T-1.A.04` | `T-1.A.03` only; report `T-1.A.04` as still queued |
 
 If `tasks.md` is missing: stop. Tell the user to run `/execute plan.md` first to generate the ledger. Do **not** invent tasks.
+
+## Outstanding hand-off — the standing question (check this first)
+
+**A run with an unanswered hand-off does no other work, and never cancels the question.** The ask is a gate, not a courtesy. Once it goes unanswered, the question is **written into `tasks.md` together with its choices** and left standing there. That record *is* the question from then on: it outlives the session, and no absence, timeout or fresh start can cancel it.
+
+1. Read `tasks.md` and look for a `## Pending hand-off` section.
+2. **If it exists**: the question and its choices have been asked and are still open. **Do not ask it again** — a repeat dialog supersedes the standing one, which is the one thing that must not happen. Do not reword it, do not edit the record, and do not remove it.
+3. Take **no git action**, start **no task**, and stop — report the standing question and its choices verbatim, and say that the queue is held until the user answers. Its own prompt does not license a different flow, a substitute action or a new task: only an answer does.
+4. **When the user answers** — a chosen option, or plain text saying what to do — carry out exactly that flow, then delete the `## Pending hand-off` section as part of that run's ledger update. A `Skip` answer deletes it too: the work stays uncommitted by their choice, and the queue is unblocked.
+5. **When the user is away**, nothing changes: the record stays exactly as it is and the run holds.
+
+---
+
+## Start from main (every run, before Phase A)
+
+**Every `/do-task` invocation begins on an up-to-date `main`** — that is the state the ledger and the code are judged against. In **each** repository this run will read or write:
+
+1. Read the current branch: `git branch --show-current`
+2. If it is **not** `main`, switch: `git checkout main`
+3. Pull: `git pull --ff-only origin main`
+
+The repositories this run touches are the **planning repository** (the ledger and these skills live there) and the repository the chosen task lands in, per the `## Repositories` map. `--status` and `--check` runs sync too — they read the same ledger — but they write nothing.
+
+- **Never destroy or hide work to reach `main`.** No `git stash`, no `git checkout -- .`, no `reset`, no force. Read `git status --short` first: if the tree is not clean, **stop and ask the user** — an unfinished task branch or an unanswered Phase F hand-off is the usual reason, and that diff is the user's call, not the sync's.
+- `--ff-only` on purpose: if `main` has diverged, the pull fails loudly instead of quietly making a merge commit or a rebase. Report that rather than forcing it.
+- State in the report which repository started on which branch (and whether the pull brought anything new).
 
 ---
 
@@ -228,22 +256,23 @@ Then:
 
 ---
 
-## Phase F — Hand off (commit, push, MR/PR) — always asked, never assumed
+## Phase F — Hand off (commit, push + MR/PR) — the final flow of every task
 
-Phase E has closed the task and updated the ledger. **Nothing leaves the machine until the user says so in this run.**
+**Every completed task ends here.** Once Phase E has closed the task and updated the ledger, the run's last act is to ask the user to **commit, push and open the MR/PR** — always, for every task, however small the diff. This is the flow: there is no version of a finished task that ends without the ask.
 
-**When it runs**: after Phase E, when the run changed at least one file. A task that was already implemented, or that ended `BLOCKED`/`SKIPPED` with no file change, has nothing to hand off — report and stop. A run that changed files **always** asks, even when the diff is one line.
+**When it runs**: after Phase E, whenever the run changed at least one file — and that includes the ledger update itself, so every task reaching `DONE` asks. A task that ended `BLOCKED`/`SKIPPED` with no file change has nothing to hand off: report and stop.
 
-**The ask**
+**The ask** — put all three to the user, in this order, naming the **exact repositories and files** this run changed, before touching git:
 
-Ask the user with the chat question tool, naming the **exact repositories and files** this run changed, before touching git:
-
-1. **Commit + push** to the current branch
-2. **Commit on a task branch, push it, open the MR/PR** (recommended branch name: the task id)
+1. **Commit + push + open the MR/PR** — the flow: a task branch named for the task id, one commit per repository, pushed, with the MR/PR opened against `main` (recommended)
+2. **Commit + push** to the branch that is checked out now — no MR/PR
 3. **Commit only** — leave the push to the user
 4. **Skip** — leave everything uncommitted
 
 - Consent is **per run**. An explicit instruction in *this* run's own prompt — “commit and push when done”, “open a PR for it” — is consent for this run: honour that part of the ask without re-asking it. Anything said in an earlier run, or a general “you can commit from now on”, is **not** consent. Ask, and wait.
+- **An unanswered ask is not an answer.** If the user does not reply, or cannot be reached, the run ends with **no git action at all** — no commit, no branch, no push, no MR/PR. Report the changed paths as uncommitted and stop. **Never substitute a smaller action** for the answer: do not commit “for safety”, do not park the work on a local branch to keep the tree tidy, and never push or merge anything the user did not ask for.
+- **The ask then stays outstanding — recorded, with its choices.** Write it into `tasks.md` as a `## Pending hand-off` section: the question, the exact choices it was put with, the repository/branch state, and which paths are uncommitted. That record **is** the standing question from then on — never re-put (a repeat dialog would cancel it), never reworded, never removed — until the user answers. Nothing else happens while it stands: no new task, no git action (*Outstanding hand-off*). Delete it only when the answer has been carried out, or the user chose `Skip`.
+- **The ask decides the flow, not the run**: the three actions are put to the user together, and whatever they pick is exactly what happens — nothing dropped, nothing added (no extra branch, no unasked push, no MR they did not choose).
 - Name the request for what the hosting remote calls it: a **pull request (PR)** on a GitHub remote, a **merge request (MR)** on a GitLab one. Never mix the two names.
 - On `Skip`, report the uncommitted paths and stop. Do **not** commit anyway, and do not ask a second time in the same run.
 - The question is about the diff, not about continuing to the next task. The one-task rule is untouched by the answer.
@@ -265,6 +294,8 @@ Ask the user with the chat question tool, naming the **exact repositories and fi
 - `--no-verify`, a hooks-path override, or any other flag that skips a check — if a hook fails, stop and report it
 - Add, change or remove a remote, or push to a repository the ledger does not name
 - Commit files the task did not change, or as another author
+- Treat silence as consent: an unanswered ask leaves the work uncommitted
+- Substitute a smaller git action for the one asked — a local-only commit, a parked branch or an unasked push decided by the run itself
 
 **Commit message**
 
@@ -274,7 +305,9 @@ Ask the user with the chat question tool, naming the **exact repositories and fi
 
 **Report**
 
-Per repository: branch, commit hash, pushed or not, and the MR/PR URL — or that the hand-off was skipped, with the paths left uncommitted.
+Per repository: branch, commit hash, pushed or not, and the MR/PR URL — or that the hand-off was skipped, with the paths left uncommitted. Always say the ask was put and what the answer was; “asked, not yet answered” is a complete report.
+
+Leaving a task branch checked out after this run is fine: the next run returns to `main` first (*Start from main*), so say which branch this run left each repository on.
 
 ---
 
@@ -300,18 +333,22 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Skip Phase A/B (ledger + already-implemented scan)
 - Skip tracing the real flow
 - Write application code into the wrong repository, into the planning repository, or into a repository the ledger does not name
-- **Commit, push or open an MR/PR without the user's explicit yes in that same run** — consent is never inferred, never carried over from an earlier run, and never assumed from a standing instruction
+- **Commit, push or open an MR/PR without the user's explicit yes in that same run** — consent is never inferred, never carried over from an earlier run, never assumed from a standing instruction, and never assumed from silence
+- End a completed task without the Phase F ask, or let the run pick the git flow itself instead of putting commit + push + MR/PR to the user
+- Decide commit, push or MR/PR for the user, or let the question lapse — an unanswered ask stays in the ledger and is re-asked, unchanged, until they choose
 - Push a secret (every remote is public), `git add -A`, or force-push
+- Reach `main` by throwing work away — no `stash`, `reset`, `checkout -- .`, dirty-tree checkout or forced pull to clear the way (*Start from main*)
 
 ---
 
 ## Output of a successful `/do-task`
 
-1. Inventory snippet (all tasks / current)
-2. Already-implemented verdict
-3. Ladder rung used (1–7)
-4. Diff: fewest files, shortest working change (or no diff if already done)
-5. One runnable check (if non-trivial) — executed
-6. `tasks.md` updated for that id
-7. Hand-off: the ask, the user's answer, and per repository the branch, commit hash, push state and MR/PR URL — or that it was skipped and the paths are left uncommitted
-8. A closing line naming the **next** runnable id — reported, **not started**
+1. The repository/branch state it started from — `main` synced, or the dirty tree it stopped and asked about
+2. Inventory snippet (all tasks / current)
+3. Already-implemented verdict
+4. Ladder rung used (1–7)
+5. Diff: fewest files, shortest working change (or no diff if already done)
+6. One runnable check (if non-trivial) — executed
+7. `tasks.md` updated for that id
+8. **The hand-off, always last**: the ask — commit, push and open the MR/PR — and the user's answer, with per repository the branch, commit hash, push state and MR/PR URL; or that the ask went unanswered, the paths are left uncommitted, and the ask is recorded as a `## Pending hand-off` in `tasks.md` for the next run to re-ask
+9. A closing line naming the **next** runnable id — reported, **not started**
