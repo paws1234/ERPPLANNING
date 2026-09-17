@@ -207,11 +207,11 @@ The backend and the frontend live in **separate repositories**. Each has its own
 
 | Repo | Local path (relative to the workspace root) | Remote | State |
 |---|---|---|---|
-| Planning (this one) | `ERPV1/.` | `https://github.com/paws1234/ERPPLANNING.git` | initialised on `main`, `origin` set, **no commits yet**; tracks `.github/` only |
-| Backend | `ERPV1/ERPbackend` | `https://github.com/paws1234/ERPbackend.git` | initialised on `main`, `origin` set, **no commits yet** |
-| Frontend | `ERPV1/ERPfrontend` | `https://github.com/paws1234/ERPfrontend.git` | initialised on `main`, `origin` set, **no commits yet** |
+| Planning (this one) | `ERPV1/.` | `https://github.com/paws1234/ERPPLANNING.git` | `main` @ `da2c548` — tracks `.github/` (this ledger, the plan, the skills) and the root `.gitignore`; Phase 0 merged except the batch in review |
+| Backend | `ERPV1/ERPbackend` | `https://github.com/paws1234/ERPbackend.git` | `main` @ `b36e79a` — the app, its image, the compose stack and its pipeline (`.github/workflows/backend.yml`); 19 tagged commits of Phase 0 work |
+| Frontend | `ERPV1/ERPfrontend` | `https://github.com/paws1234/ERPfrontend.git` | `main` @ `da7e483` — the Next.js shell, the typed client and its pipeline (`.github/workflows/frontend.yml`) |
 
-All three remotes are **public** and empty. `ERPbackend/` and `ERPfrontend/` are **gitignored** in the planning repo — `git check-ignore` confirms both — so they are never committed here, not even as gitlinks. The apps' first commits belong to the Phase 0 packaging tasks (`T-0.DEPLOY.01`, `T-0.DEPLOY.02`). Being public, no `.env`, credential or secret may ever be committed to any of the three.
+All three remotes are **public**. `ERPbackend/` and `ERPfrontend/` are **gitignored** in the planning repo — `git check-ignore` confirms both — so they are never committed here, not even as gitlinks. The apps' first commits belong to the Phase 0 packaging tasks (`T-0.DEPLOY.01`, `T-0.DEPLOY.02`). Being public, no `.env`, credential or secret may ever be committed to any of the three.
 
 The planning repo tracks `.github/` (this ledger, the plan, the skills) plus the root `.gitignore`. A `/do-task` run starts from the workspace root and lands its diff in the subfolder named in the map below.
 
@@ -222,7 +222,7 @@ The skills carry this map: `/plan` records the repository layout in the plan, `/
 | **Backend repository** | every task not listed below |
 | **Frontend repository** | `T-0.API.02`, `T-0.DEPLOY.02`, `T-0.CICD.02`, `T-2.PROC.04`, `T-3.SALES.02`, `T-5.EMP.02`, `T-6.ANALYTICS.01` |
 | **Both** — client in the frontend repo, API and postings in the backend repo | `T-3.POS.01`, `T-3.POS.02`, `T-3.POS.03`, `T-3.POS.04`, `T-6.PORTAL.01`, `T-6.OFFLINE.01`; the verification tasks (`T-0.X.GATE` … `T-6.X.GATE`, `T-6.HARD.01`, `T-6.HARD.02`, `T-6.HARD.04`) span both repos |
-| **Deployment stack** — `T-0.DEPLOY.03` | repository undecided; see Open Questions |
+| **Deployment stack** — `T-0.DEPLOY.03` | the **backend repository** (`docker-compose.yml` + `docker-compose.dev.yml` landed there, in the repository the user named for it); Open Question 5's *confirm which* is all that is outstanding |
 
 A `/do-task` run must land its diff in the repository named in the map above — `ERPV1/ERPbackend` or `ERPV1/ERPfrontend` — running from the workspace root.
 
@@ -545,10 +545,27 @@ A `/do-task` run must land its diff in the repository named in the map above —
   - The API contract is published from the running backend and the frontend consumes it through a generated client, holding no direct database access (API-first)
   - One command brings up the database, backend and frontend as three separate containers, database healthy first, with its data surviving a stack restart
   - Both applications build and publish from their own repositories — no sibling checkout, no shared source tree — with the contract artifact as the only coupling (separate repositories)
-- **Evidence**: The checks above, each with its output; plus the Open Questions answered (stack recorded, target markets confirmed, any threshold defaults decided).
+- **Evidence**: Every criterion below was checked **in the tree on 2026-09-18**, on the batch's committed trees (backend `d3aa269`, frontend `e0dda9e`) with a venv holding exactly `requirements-dev.lock` and a scratch PostgreSQL 16, plus the two pipelines' observed runs. **Nothing failed, so nothing was fixed — this task is verification only.**
+  - *A written stack decision exists* — `ERPbackend/TECH-STACK.md` §Decisions names all five: Python + FastAPI + SQLAlchemy, Next.js, PostgreSQL, a Postgres-backed queue with no Redis (the one library sub-choice deliberately still open), PostgreSQL full-text search, each with its §3 justification.
+  - *CI runs unit, integration and ledger-integrity checks and blocks on failure* — `T-0.CICD.01` and `T-0.CICD.02`, observed: green runs `35245612760`, `35245737990`, `35247288089`, `35247366799`; deliberately red runs `35245973296` (`checks = failure`, `publish`/`deploy` `skipped`) and `35247590159` (`checks = failure`, `publish` `skipped`); and the merge itself blocked — throwaway PR #6 read `MERGEABLE BLOCKED` with the required `checks` context failing. The unit layer has no members yet (Phase 1's pure functions will add the first), and the loop runs whatever `tests/check_*.py` exists, so it is the *pipeline* that is complete, not the layer's contents.
+  - *The posting primitive rejects unbalanced entries and is the only entry point* — `tests/check_posting_invariant.py`: `ok — the primitive refused the unbalanced set: entry does not balance: debit 100.00 != credit 90.00` (and the single-line and raw-SQL cases). `JournalEntry(` / `JournalLine(` are constructed only inside `app/ledger/posting.py` (lines 235/241), and `post_journal_entry` is called once in the tree, from `app/api.py`.
+  - *Company scoping is enforced; a second company cannot see the first company's data* — `tests/check_company_isolation.py`: `ok — the company dimension is enforced; one company cannot see another's rows`, run as a non-owner role so row-level security is what refuses.
+  - *Posted ledger entries cannot be updated or deleted; masters soft-delete only* — `tests/check_audit_conventions.py`: `ok — ledgers are append-only and masters retire by marking, in the database` (raw `UPDATE`/`DELETE` refused; stock entries join the same convention with `T-1.INV.03`).
+  - *Every master and transaction change is attributable* — `tests/check_audit_trail.py`: `ok — every master and transaction change is recorded and the record is immutable`.
+  - *One party holds multiple roles without duplication* — `tests/check_party_roles.py`: `ok — one party identity holds every role it has, and no role's data on the base row`.
+  - *A configured approval chain runs a document end to end* — `tests/check_approval_engine.py`: `ok — the chain is configuration, a document follows it exactly, and its history stands` (two document types configured as data, one of them mentioned by no module in the repository).
+  - *Field-level permission denial is enforced at the API boundary* — `tests/check_security.py`: `ok — permissions are enforced at the boundary, field by field, and refusals are recorded`.
+  - *Duplicate inbound delivery processed once; failed outbound sends retried and logged* — `tests/check_integrations.py`: `ok — duplicates are processed once, every send is logged, and credentials stay in the environment`.
+  - *A scheduled report runs, is scoped by permission, and records failure* — `tests/check_reporting.py`: `ok — reports are scheduled, scoped and delivered, and a failure is a row`.
+  - *At least one complete localization pack imports cleanly* — `tests/check_localization.py`: `ok — the pack structure is validated and the Philippines pack is complete` (58 accounts; six deliberately broken copies each refused).
+  - *Phase 1 domain models and API contracts are complete for the seven entities* — `ERPbackend/DOMAIN-MODELS.md` §3 Account, §4 Journal Entry / GL Transaction, §5 Item · Item Variant · UOM Conversion · barcode, §6 Warehouse / Location, §7 Stock Ledger Entry, with §2's rules (company dimension and RLS, soft-deleted masters vs append-only ledgers, exact decimals, enums refused) and §8 excluding every later-phase entity. No runnable check: a contract document is not logic.
+  - *The contract is published from the backend and consumed by the frontend through a generated client, holding no direct database access* — `tests/check_api_conventions.py`: `ok — the conventions hold and the published contract is what the app serves`; frontend `npm run check`: `ok — the shell is built from the published contract alone`, whose CI log reads `backend checkout not present — the contract copy stands on its own`.
+  - *One command brings up the database, backend and frontend as three containers, database healthy first, data surviving a restart* — `tests/check_compose_stack.py`: `ok — one command brings up three healthy containers, and only the backend sees the database`; and the backend pipeline's own `deploy` job did the same from the published image against a real database (run `35245737990`, db healthy before the backend started).
+  - *Both applications build and publish from their own repositories, contract artifact the only coupling* — `tests/check_backend_image.py`: `ok — the image builds, carries no secret, runs non-root and stops on SIGTERM`; frontend `node scripts/check-image.mjs`: `ok — the frontend image builds, carries no toolchain, and takes its API from the environment`; and both pipelines published (`ghcr.io/paws1234/erpv1-backend:d3aa269ce8adea40ef628cef600d2c1f0d077c99`, `ghcr.io/paws1234/erpv1-frontend:e0dda9e5148380f2462e6b77db3f9f447fbbfe09`) from their own repository with no sibling checked out.
+  - *The Open Questions* — the stack is recorded (item 11) and the market confirmed (item 3) as of 2026-09-17; the Phase 1 defaults are decided (item 7); **`container_registry` was answered on 2026-09-18** in this run and is now in the Variables table and the Resolved list, together with the three pieces of ledger drift this gate exposed and corrected. Deliberately still open, and not blockers for Phase 0: the **Philippines fiscal year start** (the pack carries `null` and `T-0.LOC.01` refuses to guess — **the first Phase 1 task, `T-1.ACCT.01`, will need it confirmed**), the job-queue **library**, the per-phase deferred defaults, and the deployment **target**.
 - **Estimated Effort**: M
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ---
 
@@ -1967,13 +1984,18 @@ A `/do-task` run must land its diff in the repository named in the map above —
 11. **Stack** — decided: Python + FastAPI + SQLAlchemy, Next.js, PostgreSQL, Postgres-backed queue (library unpinned), PostgreSQL full-text search.
 12. **Repository split** — `paws1234/ERPbackend` and `paws1234/ERPfrontend`, created 2026-09-17 as folders inside `ERPV1` (`ERPV1/ERPbackend`, `ERPV1/ERPfrontend`). `ERPV1` itself is the planning repository `paws1234/ERPPLANNING`: it tracks `.github/` and gitignores both app folders, so `ERPV1/ERPbackend` and `ERPV1/ERPfrontend` are never committed to it.
 
+### Resolved 2026-09-18
+
+1. **`container_registry`** — **`ghcr.io/paws1234`, public packages** (decided by the user for `T-0.CICD.01`, and the value both pipelines publish to: `ghcr.io/paws1234/erpv1-backend:<commit>` and `ghcr.io/paws1234/erpv1-frontend:<commit>`, both pullable anonymously). The Variables table states it instead of "Not stated". *(Affects `T-0.CICD.01`, `T-0.CICD.02`, `T-0.DEPLOY.03`.)*
+2. **Ledger drift, corrected in `T-0.X.GATE`** — the `## Repositories` table said all three repositories had **no commits yet** and the paragraph called the remotes empty (they have commits); the routing table still called the deployment stack's home undecided although `T-0.DEPLOY.03` had already landed it in the backend repository. All three are now stated as they are.
+
 ### Still open
 
 1. **Philippines fiscal year start** — needed by the CoA, period locking, the statements and payroll; it must be confirmed with the pack in `T-0.LOC.01` rather than assumed. *(Affects `T-0.LOC.01`, `T-1.ACCT.01`, `T-1.ACCT.04`, `T-1.ACCT.07`.)*
 2. **Job-queue library** — Postgres-backed is decided; `pgqueuer` vs `procrastinate` is not pinned. *(Affects `T-0.REPORT.01`, `T-0.CICD.01`, `T-3.AR.03`, `T-3.AR.04`, `T-6.OFFLINE.01`, `T-6.OFFLINE.02`.)*
 3. **Remaining configuration defaults** — deferred by decision 7b to the phase that needs each: `fx_rate_source`, `approval_thresholds`, `three_way_match_tolerance`, aging buckets, `dunning_levels`, `credit_check_mode`, `mrp_horizon_days` / `mrp_bucket`, `payroll_cutoff_day`, `shift_definitions`, `overtime_rules`, `leave_accrual_rule`, supplier scoring weights, `report_schedule`.
 4. **Deployment target for the container stack** — the plan fixes one container per service and a single compose file, but not *where* they run (a single host, or a managed database plus app hosts). Compose covers local development and a single-host deploy; anything beyond that needs a decision before `T-0.DEPLOY.03` is used in anger. *(Affects `T-0.DEPLOY.03`, `T-0.CICD.01`, `T-6.HARD.01`.)*
-5. **Home of the compose/deployment stack** — narrowed 2026-09-17: only two repositories were created, so the stack file lands in one of them rather than in a third infrastructure repository — most naturally the backend repository, which owns the service definitions. **Confirm which.** *(Affects `T-0.DEPLOY.03`, `T-0.CICD.01`, `T-0.CICD.02`.)*
+5. **Home of the compose/deployment stack** — narrowed 2026-09-17: only two repositories were created, so the stack file lands in one of them rather than in a third infrastructure repository — most naturally the backend repository, which owns the service definitions. **Confirm which.** *(Affects `T-0.DEPLOY.03`, `T-0.CICD.01`, `T-0.CICD.02`.)* — **Update 2026-09-18**: `T-0.DEPLOY.03` is `DONE` and its file landed in the **backend** repository, in the repository the user named for it; what remains open is only confirming that this is where it should stay.
 
 *(Two items previously listed here are settled as of 2026-09-17: the plan and ledger live in the planning repo `paws1234/ERPPLANNING` (`ERPV1/.github`), and the app repos are `paws1234/ERPbackend` and `paws1234/ERPfrontend` — see the Repositories section.)*
 
