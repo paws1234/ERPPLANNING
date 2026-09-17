@@ -258,10 +258,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `journal_balance_invariant` (always on); `base_currency`, `company_id` on each entry.
 - **Dependencies**: T-0.STACK.01
 - **Acceptance Criteria**: An unbalanced set of lines is rejected with a clear error and nothing persisted; a balanced set persists atomically; there is exactly one posting entry point used by all callers (no module-local posting code); the check is enforced at the storage boundary, not only in the caller.
-- **Evidence**: The integrity check from T-0.CORE.02 plus a rejection and an acceptance case, run in CI.
+- **Evidence**: `ERPbackend/app/ledger/posting.py` (the primitive) and `ERPbackend/app/db.py` (shared declarative base), plus the one check `ERPbackend/tests/check_posting_invariant.py` — run 2026-09-17 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_posting_invariant.py`), all four assertions green: a balanced set persists as one unit; an **unbalanced** set is refused by the primitive with `entry does not balance: debit 100.00 != credit 90.00` and leaves no row behind; a **single-line** set is refused with `a posting needs at least 2 lines, got 1`; and **raw SQL that bypasses the primitive** is refused at COMMIT by the database's own DEFERRABLE INITIALLY DEFERRED constraint triggers (`does not balance`, `has 0 line(s); a posting needs at least 2`) — the storage boundary, not only the caller. `post_journal_entry` is the only writer of `journal_entry` / `journal_line` in the tree. The whole-ledger scan and the CI wiring are T-0.CORE.02 and T-0.CICD.01.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-0.CORE.02
 - **Title**: Testing strategy and ledger-integrity test harness
