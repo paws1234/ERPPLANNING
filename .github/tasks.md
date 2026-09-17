@@ -215,7 +215,7 @@ All three remotes are **public** and empty. `ERPbackend/` and `ERPfrontend/` are
 
 The planning repo tracks `.github/` (this ledger, the plan, the skills) plus the root `.gitignore`. A `/do-task` run starts from the workspace root and lands its diff in the subfolder named in the map below.
 
-The skills carry this map: `/plan` records the repository layout in the plan, `/execute` emits this `## Repositories` section into the ledger, and both `/do-task` and `/do-tasks-one-go` read it before writing — so a run routes backend/API work to `ERPbackend` and frontend/UI work to `ERPfrontend` rather than guessing.
+The skills carry this map: `/plan` records the repository layout in the plan, `/execute` emits this `## Repositories` section into the ledger, and `/do-task` reads it before writing — so a run routes backend/API work to `ERPbackend` and frontend/UI work to `ERPfrontend` rather than guessing.
 
 | Repo | Tasks |
 |---|---|
@@ -1979,4 +1979,4 @@ A `/do-task` run must land its diff in the repository named in the map above —
 
 ---
 
-*Every task above is `TODO`. Statuses are owned by `/do-task` and `/do-tasks-one-go` and must not be changed here.*
+*Every task above is `TODO`. Statuses are owned by `/do-task` and must not be changed here.*

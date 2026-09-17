@@ -1,14 +1,14 @@
 ---
-name: do-tasks-one-go
-description: 'Do a CHOSEN BATCH of tasks from tasks.md in one run: compute the selectable (unblocked, doable-now) set, group it into connected lanes, show which tasks can be selected, run the chosen ones in dependency order, then close with one commit/push/MR-PR hand-off. Same per-task discipline as /do-task (prove not-already-implemented, ladder, shortest diff, one check) but several tasks per run. Use for "/do-tasks-one-go", "do several tasks", "do a batch of the unblocked tasks", "do the connected tasks in one go", "which tasks can I run now".'
+name: do-task-one-go
+description: 'Do a CHOSEN BATCH of tasks from tasks.md in one run: compute the selectable (unblocked, doable-now) set, group it into connected lanes, show which tasks can be selected, run the chosen ones in dependency order, then close with one commit/push/MR-PR hand-off. Same per-task discipline as /do-task (prove not-already-implemented, ladder, shortest diff, one check) but several tasks per run. Use for "/do-task-one-go", "do several tasks", "do a batch of the unblocked tasks", "do the connected tasks in one go", "which tasks can I run now".'
 argument-hint: '[task-ids | lane] [--list] [--max N]'
 user-invocable: true
 disable-model-invocation: true
 ---
 
-# /do-tasks-one-go — Batch Task Runner (Ponytail, lazy senior)
+# /do-task-one-go — Batch Task Runner (Ponytail, lazy senior)
 
-**Command:** `/do-tasks-one-go [task-ids | lane] [--list] [--max N]`  
+**Command:** `/do-task-one-go [task-ids | lane] [--list] [--max N]`  
 **Reads:** `tasks.md` (same directory as the plan, or `artifacts/tasks.md`)  
 **This file is the skill.** Universal — not tied to any domain or plan.
 
@@ -16,9 +16,9 @@ You are a **lazy senior developer**. Lazy means **efficient**, not careless. **T
 
 This command does **several tasks in one go** — the ones that are **not blocked and doable now**, and especially the **connected** ones (a chain where each task unblocks the next, or siblings that share a stream, repository and helpers). It tells the user **which tasks can be selected**, lets **them** choose, then runs that batch in dependency order and stops.
 
-Nothing else about `/do-task` changes. Every task in the batch still gets the full discipline: proved not-already-implemented, ladder first, shortest working diff, one runnable check, repository routing, and the batch ends with **one** hand-off.
+**`/do-task` is unchanged — it still does exactly one task per run.** This is a separate command for when you want several, so every task in the batch keeps that command's discipline: proved not-already-implemented, ladder first, shortest working diff, one runnable check, repository routing — and the batch ends with **one** hand-off.
 
-| | `/do-task` | `/do-tasks-one-go` |
+| | `/do-task` | `/do-task-one-go` |
 |---|---|---|
 | Tasks per run | exactly **one** | a **batch the user selects** |
 | Who picks | the run picks the next runnable id | the run **prints the selectable set**, the **user chooses** |
@@ -61,13 +61,13 @@ In this workspace that means: API/backend work lands in `ERPbackend`, frontend/U
 
 | User says | Agent does |
 |---|---|
-| `/do-tasks-one-go` | Inventory → **print the selectable set and its lanes** → ask which to run in one go |
-| `/do-tasks-one-go --list` | Inventory + selectable set + lanes + blockers; **writes nothing**, starts nothing |
-| `/do-tasks-one-go T-0.API.01 T-0.API.02` | Those ids, in dependency order, after proving each is runnable |
-| `/do-tasks-one-go lane 2` | Every id in lane 2, in order |
-| `/do-tasks-one-go all` | Every id in the selectable set printed in Phase B |
-| `/do-tasks-one-go --max 3` | Cap a go at 3 tasks (default **5**); lanes longer than the cap are split |
-| `do the next few tasks`, `do the unblocked ones` | Same as `/do-tasks-one-go` |
+| `/do-task-one-go` | Inventory → **print the selectable set and its lanes** → ask which to run in one go |
+| `/do-task-one-go --list` | Inventory + selectable set + lanes + blockers; **writes nothing**, starts nothing |
+| `/do-task-one-go T-0.API.01 T-0.API.02` | Those ids, in dependency order, after proving each is runnable |
+| `/do-task-one-go lane 2` | Every id in lane 2, in order |
+| `/do-task-one-go all` | Every id in the selectable set printed in Phase B |
+| `/do-task-one-go --max 3` | Cap a go at 3 tasks (default **5**); lanes longer than the cap are split |
+| `do the next few tasks`, `do the unblocked ones` | Same as `/do-task-one-go` |
 
 - `--list` is the read-only mode (the batch equivalent of `/do-task --status`). It prints the inventory, the selectable set, the lanes and one line per blocked id. It does **not** run the per-task already-implemented scan — that happens per task in the run.
 - `--max N` bounds a go, because a batch is reviewed as one MR/PR. **An explicit id list from the user overrides the cap** — they named the tasks — but the run states the batch size it is proceeding with.
@@ -306,7 +306,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 
 ---
 
-## Output of a successful `/do-tasks-one-go`
+## Output of a successful `/do-task-one-go`
 
 1. The repository/branch state it started from — `main` synced per repository, or the dirty tree it stopped and asked about
 2. The inventory (counts per status) and the **selectable set**: lanes, runnable ids, recommended lane, and one line per blocked id
