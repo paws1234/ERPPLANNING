@@ -1,6 +1,6 @@
 ---
 name: do-task
-description: 'Do exactly ONE task from tasks.md per run: inventory the ledger, prove the task is not already implemented, climb the build ladder, ship the shortest working diff, then stop. Use for "/do-task", "do the next task", resume a DOING task, mark a task DONE, or check task status.'
+description: 'Do exactly ONE task from tasks.md per run: inventory the ledger, prove the task is not already implemented, climb the build ladder, ship the shortest working diff, then ask before committing, pushing or opening the MR/PR — and stop. Use for "/do-task", "do the next task", resume a DOING task, mark a task DONE, commit and push a finished task, open a PR/MR, or check task status.'
 argument-hint: '[task-id] [--status] [--check]'
 user-invocable: true
 disable-model-invocation: true
@@ -23,7 +23,7 @@ This command exists to **do one (or the next) task from `tasks.md`**, after prov
 **One invocation of `/do-task` = exactly one task from `tasks.md`. Then stop.**
 
 - Pick **one** id. Do **only** that id.
-- When it reaches `DONE`, `BLOCKED`, or `SKIPPED` → report and **hand back to the user**.
+- When it reaches `DONE`, `BLOCKED`, or `SKIPPED` → report, ask the hand-off question if the run changed files (Phase F), and **hand back to the user**.
 - **Never** continue to the next task in the same run. Not when the next one looks small, not when it lives in the same file, not when it is "obviously" the same fix, not when the user names several ids, and not when the user says "do the next 3 tasks" or "keep going" — do the **first**, report, and wait for the next invocation.
 - If the user names several ids, do the **first runnable** one and say the rest are still queued.
 - Gates (`T-n.X.GATE`) count as one task. Verifying a gate is not an invitation to start the next phase.
@@ -41,7 +41,8 @@ The rest of this file may only ever act on that single id.
 5. If yes → mark `DONE`, do not rewrite it
 6. If no → climb the ladder, then ship the **shortest working diff** that meets acceptance criteria
 7. Leaves **one runnable check** for non-trivial logic
-8. **Stops.** The next task waits for the next invocation
+8. **Asks** before the diff leaves the machine — commit, push and the MR/PR are the user's call, every run (Phase F)
+9. **Stops.** The next task waits for the next invocation
 
 It does **not** re-plan. It does **not** expand scope. It does **not** batch tasks. It does **not** “while we’re here” neighboring tasks.
 
@@ -222,7 +223,58 @@ Then:
 
 - Set the task to `DONE` (or `BLOCKED` with the exact missing external)
 - Note evidence in the task block (paths, check command/result)
-- **Stop. One task per run.** Do not start the next task, do not "keep the momentum going", do not ask whether to continue and then continue — report the finished id and end the run. The user re-runs `/do-task` for the next one
+- Then go to **Phase F** — the hand-off ask, which is the only thing left in this run
+- **Stop. One task per run.** Do not start the next task, do not "keep the momentum going", do not ask whether to continue and then continue — report the finished id and end the run. The user re-runs `/do-task` for the next one. Answering the hand-off question does not license the next task
+
+---
+
+## Phase F — Hand off (commit, push, MR/PR) — always asked, never assumed
+
+Phase E has closed the task and updated the ledger. **Nothing leaves the machine until the user says so in this run.**
+
+**When it runs**: after Phase E, when the run changed at least one file. A task that was already implemented, or that ended `BLOCKED`/`SKIPPED` with no file change, has nothing to hand off — report and stop. A run that changed files **always** asks, even when the diff is one line.
+
+**The ask**
+
+Ask the user with the chat question tool, naming the **exact repositories and files** this run changed, before touching git:
+
+1. **Commit + push** to the current branch
+2. **Commit on a task branch, push it, open the MR/PR** (recommended branch name: the task id)
+3. **Commit only** — leave the push to the user
+4. **Skip** — leave everything uncommitted
+
+- Consent is **per run**. An explicit instruction in *this* run's own prompt — “commit and push when done”, “open a PR for it” — is consent for this run: honour that part of the ask without re-asking it. Anything said in an earlier run, or a general “you can commit from now on”, is **not** consent. Ask, and wait.
+- Name the request for what the hosting remote calls it: a **pull request (PR)** on a GitHub remote, a **merge request (MR)** on a GitLab one. Never mix the two names.
+- On `Skip`, report the uncommitted paths and stop. Do **not** commit anyway, and do not ask a second time in the same run.
+- The question is about the diff, not about continuing to the next task. The one-task rule is untouched by the answer.
+
+**One commit per repository**
+
+- Run git with the repository as the working directory, one repository at a time. A task that touched several repositories produces **one commit in each**, in the same run, and the report names them all.
+- The ledger update (`tasks.md`) is part of this run's diff and belongs in the planning repository's commit — not left floating in the working tree.
+- **Stage only the files this task changed.** Never `git add -A`, `git add .` or `git commit -a`. Read `git status --short` and `git diff` in that repository first.
+
+**Secrets (hard rule — these remotes are public)**
+
+- Before every commit, check the staged set for `.env`, credentials, keys, tokens and passwords. If anything sensitive is staged, **stop**, unstage it, report it, and do not proceed without an explicit answer.
+- A pushed secret is compromised. There is no “fix it in the next commit”.
+
+**Never**
+
+- Force-push, amend, rebase or otherwise rewrite history that is already pushed
+- `--no-verify`, a hooks-path override, or any other flag that skips a check — if a hook fails, stop and report it
+- Add, change or remove a remote, or push to a repository the ledger does not name
+- Commit files the task did not change, or as another author
+
+**Commit message**
+
+- Follow the repository's own convention if it has one (a `CONTRIBUTING.md`, a visible history).
+- Otherwise: subject `T-<id>: <what changed>` — one line, imperative. Body only when the why is not obvious.
+- The task id appears in the message, so the commit and the ledger's evidence are findable from each other.
+
+**Report**
+
+Per repository: branch, commit hash, pushed or not, and the MR/PR URL — or that the hand-off was skipped, with the paths left uncommitted.
 
 ---
 
@@ -248,6 +300,8 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Skip Phase A/B (ledger + already-implemented scan)
 - Skip tracing the real flow
 - Write application code into the wrong repository, into the planning repository, or into a repository the ledger does not name
+- **Commit, push or open an MR/PR without the user's explicit yes in that same run** — consent is never inferred, never carried over from an earlier run, and never assumed from a standing instruction
+- Push a secret (every remote is public), `git add -A`, or force-push
 
 ---
 
@@ -259,4 +313,5 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 4. Diff: fewest files, shortest working change (or no diff if already done)
 5. One runnable check (if non-trivial) — executed
 6. `tasks.md` updated for that id
-7. A closing line naming the **next** runnable id — reported, **not started**
+7. Hand-off: the ask, the user's answer, and per repository the branch, commit hash, push state and MR/PR URL — or that it was skipped and the paths are left uncommitted
+8. A closing line naming the **next** runnable id — reported, **not started**

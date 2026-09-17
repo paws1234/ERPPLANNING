@@ -243,10 +243,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Decision (user, 2026-09-17)**: backend = **Python + FastAPI + SQLAlchemy**; frontend = **Next.js**; database = **PostgreSQL**; queue = **Postgres-backed, no Redis** (library unpinned); search = **PostgreSQL full-text**. Recorded in plan §1 and §8.
 - **Dependencies**: none
 - **Acceptance Criteria**: One written decision stating all five choices and the reason for each, justified against the §3 cross-cutting needs (immutable append-only ledgers, multi-currency, offline POS sync, scheduled reporting); the only sub-choice it may leave open is which Postgres job-queue library (pgqueuer or procrastinate) is used.
-- **Evidence**: The decision record file, reviewed and referenced by T-0.MODELS.01 and T-0.CICD.01.
+- **Evidence**: `ERPbackend/TECH-STACK.md` (backend repository) — five choices, a reason per choice, the §3 justification table, consequences; the queue library left open as permitted, to be pinned in T-0.REPORT.01. Referenced by T-0.MODELS.01 and T-0.CICD.01. No runnable check: the deliverable is a written decision, not logic.
 - **Estimated Effort**: S
 - **Owner Role**: Tech Lead / Architect
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `CORE`
 
