@@ -501,10 +501,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `container_registry` (where the image is published).
 - **Dependencies**: T-0.STACK.01, T-0.CORE.02, T-0.DEPLOY.01
 - **Acceptance Criteria**: A change runs unit, integration and ledger-integrity checks; a failing check blocks merge; the backend image publishes to the registry tagged with the commit, with the frontend repository absent; a deploy step exists and is reproducible.
-- **Evidence**: A deliberately failing branch blocked by the pipeline, and a passing run that published the backend image.
+- **Evidence**: **Stopped the batch here — `BLOCKED`, the external is a decision plus a consent that this run does not have.** The task needs two things the ledger does not supply:  1. **`container_registry` is "Not stated".** Its acceptance criterion is *"the backend image publishes to the registry tagged with the commit"*, and the ledger's own Variables table lists `container_registry` as *"Registry URL + namespace — **Not stated**"* (and the Open Questions repeat it). The ledger states plainly that "not stated" is an Open Question, "not a licence to invent one" — so naming `ghcr.io/paws1234/erpv1-backend` (or any other registry) would be inventing a deployment target, and `T-0.CICD.02` and `T-0.DEPLOY.03`'s registry reference both hang off the same value. 2. **No observed pipeline run is possible from here.** The evidence the ledger asks for is *"a deliberately failing branch blocked by the pipeline, and a passing run that published the backend image"* — that needs the pipeline to execute on the remote, which means pushing to the public remote, and pushing is a git action with no consent in this run (Phase F asks for it, and the answer was not given before this id was reached). `T-0.CICD.02` depends on this id, and `T-0.X.GATE` on both, so the batch stops before them.  **What would unblock it** (either answer is enough to continue): decide the registry (URL + namespace, and whether the images are public), and give this run consent to push — or agree that the pipeline is verified on the remote after the batch is committed, in which case this id is written (workflow + publish step) and its verification is deferred, with the wait recorded. Nothing was written for this id: no workflow file, no registry reference, no guess.
 - **Estimated Effort**: M
 - **Owner Role**: DevOps Engineer
-- **Status**: TODO
+- **Status**: BLOCKED
 
 #### Task ID: T-0.CICD.02
 - **Title**: Frontend repository pipeline
