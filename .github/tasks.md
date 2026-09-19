@@ -687,10 +687,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `warehouse_hierarchy_levels`, `company_id`.
 - **Dependencies**: T-0.MODELS.01
 - **Acceptance Criteria**: The four levels nest with the named types; a stock entry cannot reference a non-leaf location; a location with stock cannot be removed; the hierarchy is retrievable as a tree per company.
-- **Evidence**: A tree with stock posted at bin level and a rejected attempt to post at warehouse level.
+- **Evidence**: `ERPbackend/app/stock/locations.py` — `Location` (DOMAIN-MODELS.md §6 columns, unique code per company) with the four-level rule enforced **in the database** by a deferred constraint trigger: a zone's parent must be a warehouse, an aisle's a zone, a bin's an aisle, a warehouse takes none; a move into the location's own subtree and retiring a parent with live children are refused there as well; `deny_hard_delete` makes it a T-0.AUDIT.01 master. Helpers: `create_location`, `move_location`, `require_leaf` (the rule every stock movement asks), `retire_location` — refusing live children **and** a location holding stock, which it asks of T-1.INV.03's ledger rather than duplicating — and `location_tree`. Check: `ERPbackend/tests/check_location_hierarchy.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_location_hierarchy.py`, exit 0), green on all six: the four levels nest and read back as a tree (Warehouse → Zone → Aisle → Bin); a bin under a warehouse refused by the helper (`a bin cannot stand under a warehouse: the levels are wareh…`) **and** by raw SQL at COMMIT; a zone with no parent and a warehouse with a parent refused; a cycle refused at COMMIT (`location WH1 cannot be moved under…`); a parent with live children refused retirement by the helper and by a raw `UPDATE location SET deleted_at`; a duplicate code refused. The stock-side half of the same rules — a movement against a non-leaf refused, a location holding stock not removable — is proven in `tests/check_stock_ledger.py` (T-1.INV.03, same batch). The full suite (22 checks) is green on the same tree.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.INV.03
 - **Title**: Stock ledger entry model (quantity + value, append-only)
