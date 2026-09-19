@@ -739,10 +739,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `approval_levels`/`approval_thresholds` (adjustment approval), `costing_method` (adjustment value).
 - **Dependencies**: T-1.INV.05, T-0.WF.01
 - **Acceptance Criteria**: A count produces a variance per item against system quantity; posting an adjustment creates ledger entries for exactly the variance; an adjustment above the configured threshold requires approval before it affects the ledger; the count, the approver and the adjustment are all auditable.
-- **Evidence**: A count with a positive and a negative variance, both posted and auditable, plus a blocked above-threshold adjustment awaiting approval.
+- **Evidence**: `ERPbackend/app/stock/counts.py` — `PhysicalCount`/`PhysicalCountLine` (the system quantity snapshotted when the count opens, the counted quantity and the variance), `start_count`, `record_count`, `adjustment_value` and `post_adjustment`. The adjustment's value goes through T-0.WF.01's engine as document type `inventory_adjustment`: when the configured chain routes it, posting without an **approved** request is refused before anything is written, and a count already posted refuses to post again. The count's rows are company-scoped (so the audit trigger records them) and the entries name the count as their source. Check: `ERPbackend/tests/check_physical_count.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_physical_count.py`, exit 0), green on all six: the count snapshots 100 bolt and 50 nut; counting 99 and 51 gives variances `-1.000000` and `+1.000000` and an adjustment worth `30.000000` — below the configured 50 threshold, so no approval; the adjustment posted **exactly** those two variances and the bin then held 99; the entries name the count and the count is on the trail; an adjustment of `90.000000` was refused while its request was `pending` (`the adjustment of 90.000000 ne…`) with no movement written; and after an approver at the configured role approved it, the same call posted `+9.000000` once and posting again was refused. Carried with it: `physical_count_line` is declared in `app/db.py`'s `CHILD_TABLES`, which the scoping guard demanded — the convention working as intended.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.INV.07
 - **Title**: Post stock movements to the GL inventory account and reconcile valuation to GL
