@@ -778,10 +778,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `traceability_mode` (Serial), `allow_negative_stock` (never).
 - **Dependencies**: T-1.INV.05, T-1.INV.03
 - **Acceptance Criteria**: A serial-tracked item's quantity always equals its count of distinct serials in stock; a serial can only be in one place at one time; receiving, transferring and issuing a serial transitions its status correctly; a duplicate serial within an item is refused while the same value under a different item is allowed.
-- **Evidence**: One serial taken through receipt → transfer → issue with its status history, plus a duplicate-serial refusal.
+- **Evidence**: `ERPbackend/app/stock/serials.py` — `Serial` (code unique **per item**, so the same value on another item is a different unit; status `in_stock`/`issued`; the location while it is in stock), `add_serial`, `serial_by_code`, `place_serial` (receiving puts the unit in the location, issuing takes it out) and `serials_in_stock`. T-1.INV.03's recorder enforces the identity: a `serial` item moves one named unit at a time (a movement of more than one, or of none, is refused), and `stock_ledger_entry.serial_id` is a foreign key to `serial`. Check: `ERPbackend/tests/check_serial_tracking.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_serial_tracking.py`, exit 0), green on all six: a movement with no serial refused (`'PUMP' is tracked by seria…`) and a three-unit movement refused; SN-0001 received at B1, transferred to B2 and issued out of stock, its status and location following; the item's quantity (`1`) equal to its count of distinct serials in stock, naming `SN-0002`; a duplicate serial within the item refused while the same code on another item was allowed; issuing a unit that is already out refused; and an untracked item moving exactly as before.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Phase Exit Gate
 
