@@ -607,10 +607,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `company_id`; account mapping supplied by the caller.
 - **Dependencies**: T-1.ACCT.02, T-0.CORE.02
 - **Acceptance Criteria**: Every sub-module posts through this interface (verified by the ledger-integrity check finding no other writer); an unbalanced or single-line call is rejected; postings are atomic with the calling transaction (a rolled-back document leaves no journal entry); the interface is documented for the later phases.
-- **Evidence**: The ledgers-integrity check from T-0.CORE.02 green with Phase 1 writers connected, plus an atomicity check (failed document → no entry).
+- **Evidence**: `ERPbackend/app/ledger/mapping.py` — the account-mapping half of the interface: company × key → account (`AccountMapping`), `set_mapping` (through T-1.ACCT.01, so a key can only point at an account the company has), `mapped_account` refusing `MissingMappingError` for an unmapped key rather than booking to a guessed account, `mappings` for the settings read, and the module docstring carrying the worked example the later phases follow (`post_journal_entry` + `source_type`/`source_id` + mapped keys). Exposed as `PUT /api/v1/account-mappings/{key}` and `GET /api/v1/account-mappings`; contract republished. Check: `ERPbackend/tests/check_posting_interface.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_posting_interface.py`, exit 0), green on all seven: the tree scan finds **`app/ledger/posting.py` as the only writer** of `journal_entry` / `journal_line` (and the scanner is proved able to fail by scanning an injected writer); a single-line and an unbalanced call refused through the interface; a document that failed after posting left **no** entry behind (atomicity); a key resolved to its account and re-pointing kept one row; an unmapped key refused by name (`no account is mapped for 'cogs' in this company; map…`); a mapping to an account the company does not have refused at the mapping; and T-0.CORE.02's `ledger_gate` green over what the interface wrote. The full suite (15 checks) is green on the same tree.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.ACCT.04
 - **Title**: Period locking and posting audit trail
