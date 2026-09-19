@@ -713,10 +713,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `costing_method`, `valuation_scope`.
 - **Dependencies**: T-1.INV.03
 - **Acceptance Criteria**: Each of the three methods produces the method-correct value for the same movement sequence; the method is selectable at the configured scope and changing it does not rewrite history; valuation is available without a batch job; a method that cannot value an item (e.g. standard cost with no standard set) fails loudly rather than valuing at zero.
-- **Evidence**: The same movement sequence valued under all three methods with the expected figures, and a missing-standard-cost failure case.
+- **Evidence**: `ERPbackend/app/company.py` gained `costing_method` (the three §2.2 names, default `moving_average`, resolved **per company** — the decided `valuation_scope`), and `ERPbackend/app/stock/valuation.py` the engine: `valuation()` walks the ledger in posting order per method (moving average against the running average cost, FIFO consuming the oldest layers, standard cost as `quantity × standard cost`), `value_issue()` prices an issue from the same walk — the difference a synthetic issue makes — and `set_costing_method()` refuses a method outside the three. Nothing is stored and nothing is scheduled: the valuation is computed on read, which is why changing the method rewrites no history. Check: `ERPbackend/tests/check_stock_valuation.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_stock_valuation.py`, exit 0), green on all seven over one movement sequence (receive 100 @ 5.00, receive 50 @ 6.00, issue 120, receive 30 @ 7.00): the same 60 units value at **moving average 370.000000**, **FIFO 390.000000** and **standard cost 360.000000**; the engine prices that one issue at 640.000000 / 620.000000 / 720.000000 respectively, and the issue was recorded at the engine's own figure; Standard Cost without a standard is refused (`'NUT' has no standard cost, so Stan…`); switching the method left the ledger rows identical (count and value sum compared before and after); an unknown method is refused; and valuation narrows by location (`30.000000` at B2) and by date (`150.000000` as of 2026-09-05). The full suite was green on the same tree.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer (with Domain Analyst — Accounting)
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.INV.05
 - **Title**: Stock transactions — Receipt, Issue, Transfer
