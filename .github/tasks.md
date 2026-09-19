@@ -752,10 +752,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: account mapping (inventory, stock adjustment, COGS), `costing_method`.
 - **Dependencies**: T-1.INV.05, T-1.ACCT.03
 - **Acceptance Criteria**: Every receipt, issue, transfer and adjustment posts a balanced entry to the chart of accounts; the GL inventory balance equals the sum of stock ledger values for the same period to the unit of currency precision; a deliberate mismatch is detected and reported, not silently accepted; reconciliation can be run per company and period.
-- **Evidence**: The reconciliation report for a period showing zero difference, and a mismatch case that is reported.
+- **Evidence**: `ERPbackend/app/stock/gl_posting.py` — `post_movement_to_gl` (the inventory account takes the movement's value with its sign, the configured counterpart takes the opposite, so every entry balances by construction), `account_key_for` with a **refusal** for a source type nobody mapped rather than a guessed account, and `reconcile` (the GL inventory account's movement in base currency against the stock ledger's own value movement, with `balanced` and the difference as figures). The three transactions of T-1.INV.05 and the adjustment of T-1.INV.06 call it immediately after they write their entry, in the same transaction, so a movement without its posting is not a reachable state. Check: `ERPbackend/tests/check_stock_to_gl.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_stock_to_gl.py`, exit 0), green on all six: a receipt posting `Dr 1200 1000.000000 / Cr 2000 1000.000000` and an issue the mirror image (`Cr 1200 100.000000 / Dr 5000 100.000000`); a transfer posting both halves against 1200 alone (traceable, total unmoved); an adjustment posting its variance; `stock 850.000000 = GL 850.000000; difference 0` — §6 metric 2 — with the GL account read back independently; a movement whose posting was skipped reported as `difference -100.000000` and cleared once posted; and an unmapped source type refused (`no account mapping is known for 'stock_count…`) with the integrity gate green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.INV.08
 - **Title**: Batch/Lot tracking with expiry
