@@ -620,10 +620,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `period_lock_granularity`, `rbac_roles` (who may lock/unlock), `fiscal_year_start`.
 - **Dependencies**: T-1.ACCT.02, T-0.AUDIT.02, T-0.SEC.01
 - **Acceptance Criteria**: A posting dated inside a locked period is rejected; unlocking requires a permission and is itself audited with actor and reason; locking does not alter existing entries.
-- **Evidence**: A rejected back-dated posting and an audited unlock record.
+- **Evidence**: `ERPbackend/app/ledger/periods.py` — `AccountingPeriod` (one company × year × month, `state` open/closed, `changed_by`/`changed_at`/`reason` describing the last transition), `lock_period`, `unlock_period` — which asks T-0.SEC.01's `require` for the `period.unlock` capability **and** a reason — and `period_is_locked`. The refusal lives in the **posting primitive** (`post_journal_entry` raises `PeriodLockedError` before it writes anything), so every module is covered by construction rather than each caller remembering to check. Locking writes nothing to the ledger, so existing entries are untouched. Granularity is month, the decided value (`period_lock_granularity`); ponytail comment names the upgrade path to a configurable granularity. Check: `ERPbackend/tests/check_period_locking.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_period_locking.py`, exit 0), green on all six: an open month accepted a posting; the closed month refused a back-dated one (`2026-09 is closed for posting; unlock the period bef…`) with **no row left behind**, while a posting dated in the still-open August landed; the entry posted before the lock is still there with its debit and credit unchanged; unlocking without the capability refused (`'alice.locker' may not 'period.unlock' (no roles)…`) and the month stayed closed; the controller reopened it with a reason and postings were accepted again; and the trail carries both transitions with actor and reason (`('alice.locker', 'insert', 'closed', 'September is reported')`, `('bob.controller', 'update', 'open', 'late supplier invoice for September')`). The full suite (16 checks) is green on the same tree.
 - **Estimated Effort**: S
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.ACCT.05
 - **Title**: Multi-currency engine and central FX rate service
