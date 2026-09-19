@@ -726,10 +726,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `costing_method` (via valuation), `uom_conversion_factor`, `warehouse_hierarchy_levels`.
 - **Dependencies**: T-1.INV.04
 - **Acceptance Criteria**: Receipt increases quantity and value at the target location; issue decreases it and cannot drive quantity negative unless negative stock is explicitly permitted; transfer moves quantity and value between locations with no net change in total quantity/value; entries in a foreign UOM convert to the base UOM correctly; each transaction is atomic.
-- **Evidence**: One receipt, one issue and one cross-location transfer with before/after totals, plus a rejected negative-stock issue.
+- **Evidence**: `ERPbackend/app/stock/transactions.py` — `receive`, `issue` and `transfer`, each converting the caller's UOM to the item's base UOM (T-1.INV.01), refusing a non-positive quantity and writing through T-1.INV.03's recorder; a receipt states its total value, an issue is priced by T-1.INV.04's engine, a transfer carries the value across both of its entries; an issue or transfer beyond what a location holds is refused (`allow_negative_stock` is `false`). Nothing commits — the caller's document owns the transaction, so a failure leaves no movement. Check: `ERPbackend/tests/check_stock_transactions.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_stock_transactions.py`, exit 0), green on all seven: `2 boxes arrived as 24 each, worth 240.00` (UOM conversion at the edge); an issue of 4 valued at `-40.000000` by the engine; an issue beyond the location refused (`B1 holds 20.000000 of 'BOLT'; issuing 100.000000 would t…`) with **no** movement left behind; a transfer of 10 moving `100.000000` with the goods and leaving the item's totals unchanged; a transfer out of a short location, and a transfer to the location it came from, both refused; all four movements naming their document; and the ledger-integrity gate green over them.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.INV.06
 - **Title**: Physical count and reconciliation/adjustment workflow
