@@ -765,10 +765,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `traceability_mode` (Batch/Lot), `batch_expiry_required`, `costing_method` (batch-level valuation).
 - **Dependencies**: T-1.INV.05, T-1.INV.03
 - **Acceptance Criteria**: Batch identity is required on every movement of a batch-tracked item and a movement without it is refused; items whose mode is `None` are unaffected (no regression to T-1.INV.05); batch quantities reconcile to the item's total quantity; an expired batch cannot be issued without an explicit, audited override; issue suggestion follows FEFO; valuation remains correct per batch under the item's costing method.
-- **Evidence**: A batch-tracked item moved through receipt, issue and transfer with batch reconciliation, an expired-batch refusal, and an untracked item proven unaffected.
+- **Evidence**: `ERPbackend/app/stock/batches.py` — `Batch` (code unique per item, nullable `expiry_date` because `batch_expiry_required` is "Not stated", retired by marking), `create_batch` (which refuses a batch on an item not tracked by batch), `require_usable` (an expired batch refused, and an override that must **name the actor** who took the decision — the origin is then on the audit trail of the movement that follows), `fefo_batch` (earliest expiry holding stock at a location) and `retire_batch` (refused while the batch holds stock). The enforcement itself is in T-1.INV.03's recorder: a `batch_lot` item moves only with its batch, a `none` item never with one, and `stock_ledger_entry.batch_id` is a foreign key to `batch`. Check: `ERPbackend/tests/check_batch_tracking.py`, run 2026-09-19 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_batch_tracking.py`, exit 0), green on all seven: a batch-tracked movement with no batch refused (`'MILK' is tracked by batch…`) and an untracked item carrying one refused; receipts and an issue by batch leaving `MILK-SOON` holding 25 with the item totalling 45; FEFO suggesting `MILK-SOON`, the soonest expiry with stock; an expired batch refused on issue; the same issue allowed with `allow_expired=True` **and** the actor named, with the override's origin on the trail; per-batch valuation reading that batch's own value (`500.000000` for 25 units); and an untracked item moving, transferring and valuing as before.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-1.INV.09
 - **Title**: Serial number tracking
