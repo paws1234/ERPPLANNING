@@ -911,10 +911,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `tax_pack`, `company_id`.
 - **Dependencies**: T-2.PROC.01, T-0.LOC.01
 - **Acceptance Criteria**: Tax is computed per the active pack for each document type; a supplier with an invalid or missing tax identifier is flagged before the document is approved; tax amounts on the PO, GRN and invoice share one basis so the later match compares like with like; no market is hard-coded.
-- **Evidence**: One document set under a pack with a non-trivial rate set, and a flagged invalid supplier identifier.
+- **Evidence**: `ERPbackend/app/procurement/tax.py` — `active_market()` resolves the market from the packs the deployment ships (**no market name appears in the module**), `rules_for` reads the pack's own rules for a document type and refuses when the pack states none, `procurement_rule()` pins **one** rule for the whole chain (`purchase_order`, `goods_receipt`, `supplier_invoice`) and refuses when a pack taxes them differently because T-2.MATCH.01 would then compare unlike things, `tax_on` returns the rule code, rate, exact tax and total via T-0.LOC.01's `amount_from` (one rounding rule for the platform), and `findings`/`require_supplier_tax` check a supplier's tax data **before a document is approved** — a non-zero rate with no TIN behind it is a finding, a zero-rated one is not. Check: `ERPbackend/tests/check_supplier_tax.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_supplier_tax.py`, exit 0) — green on all seven: the module's source **scanned** and containing no installed market name while the market resolves to `'philippines'`; `VAT-IN-12` at 12 % on 2500.00 giving 300.000000 and 2800.000000; all three procurement documents returning that same code and the same 300.000000 on the same basis; `payroll_run` refused (`the pack states no tax rule for 'payroll_run'`); a supplier with no TIN flagged and refused while one holding `tin`/`vat` passes and its identifiers read back case-insensitively; exactness at money scale incl. a zero basis; and the rules read from pack `'philippines'` v1.0.0.
 - **Estimated Effort**: M
 - **Owner Role**: Domain Analyst (Accounting) + Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-2.PROC.09
 - **Title**: Supplier performance scoring and vendor scorecards
