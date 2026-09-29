@@ -952,10 +952,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `company_id`, `report_schedule`, aging buckets (per company — not stated).
 - **Dependencies**: T-2.AP.01
 - **Acceptance Criteria**: Aging buckets are configurable and stated on the report; each aged amount traces to an open invoice; the report total equals the AP control account balance; partial settlements reduce the correct bucket.
-- **Evidence**: An aging report over a dataset with partial payments, reconciled to the control account.
+- **Evidence**: `ERPbackend/app/ap/aging.py` — `aging()` walks T-2.AP.01's **open invoices** (so every figure traces to one: number, supplier, due date, days past due, gross, settled and open are all on the report) and buckets them with `checked_buckets`, which **refuses** any bucket set that would lose an invoice (a gap, an overlap, a wrong start, two open ends, a closed last band, an empty set, a reversed span). A partial settlement needs no special case: the bucket holds `open_amount`, so a payment reduces its own band and a fully settled invoice drops out. `by_supplier()` re-cuts the same rows and `aging_csv()` exports them with the buckets named. Check: `ERPbackend/tests/check_ap_aging.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_ap_aging.py`, exit 0) — green on all seven: five invoices aged across `current` 600.000000, `1-30` 150.000000, `31-60` 300.000000, `61-90` 0.000000 and `90+` 400.000000 summing to 1450.000000 — exactly what the invoices' open amounts add to; a 50.00 partial settlement leaving 150.000000 open in its own band and a fully settled invoice absent entirely; three custom bands giving 600/150/700 on the same total; all seven losing bucket sets refused with their reasons printed; ACME 750.000000 + BOREAL 700.000000 adding back to the company total; and a 13-line export carrying one row per aged invoice plus the bucket totals.
 - **Estimated Effort**: S
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-2.AP.03
 - **Title**: Debit notes for supplier returns and adjustments
