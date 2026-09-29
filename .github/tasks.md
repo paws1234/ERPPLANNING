@@ -939,10 +939,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `transaction_currency`, `tax_pack`, account mapping (payables control, expense).
 - **Dependencies**: T-2.PROC.01, T-1.ACCT.03
 - **Acceptance Criteria**: An invoice posts a balanced entry to the payables control account on the stated date; a duplicate supplier invoice (same supplier, number, amount) is refused; a foreign-currency invoice records rate, foreign and base amounts; the invoice is attributable to the document that produced it.
-- **Evidence**: A posted invoice with its entry, plus a duplicate-invoice rejection.
+- **Evidence**: `ERPbackend/app/ap/invoices.py` (new package `app/ap/`) — `SupplierInvoice`/`SupplierInvoiceLine` with the duplicate rule as both a module check and a database constraint (`uq_supplier_invoice_duplicate` on company + supplier + the supplier's own reference + gross), the due date derived from T-2.PROC.01's payment terms, and links to the order and receipt behind it. `post_invoice` books through **T-1.ACCT.03's mapping only** (`payables`, `input_tax`, and per line `inventory` for an item or `expense` otherwise), so no account code is fixed in the module; **`SupplierInvoiceSettlement`** is append-only and `open_amount`/`settled_amount` derive what is owed from those rows, which is the one figure T-2.AP.02/`.04`/`.05` will read. Check: `ERPbackend/tests/check_supplier_invoice.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_supplier_invoice.py`, exit 0) — green on all eight: AP-6001 posting 1170.000000 to 2000 on 2026-11-05 with 1000.000000 to `inventory` (stock line), 50.000000 to `expense` (service line) and 120.000000 to `input_tax`, balanced; the due date 2026-12-05 = invoice date + 30 days; the re-keyed invoice refused by name **and** by the database; a USD invoice keeping rate 58.5000000000 and base 12402.000000 exactly derivable; 700.00 settled leaving 470.000000 open while an over-settlement, a zero settlement and settling a **draft** are refused; the settlement table refusing an UPDATE (`append-only`); and an empty invoice, a blank supplier reference and a negative line all refused.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-2.AP.02
 - **Title**: AP aging report
