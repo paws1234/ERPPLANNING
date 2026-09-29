@@ -1019,10 +1019,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `approval_levels`, `approval_thresholds`, `rbac_roles` (who may override).
 - **Dependencies**: T-2.MATCH.01, T-0.WF.01
 - **Acceptance Criteria**: A failed invoice cannot enter a payment batch while held; release requires the configured permission and records actor, reason and the exception it resolves; an override does not alter the underlying match verdict (the exception stays visible for reporting); the match-rate metric counts overrides separately from clean matches.
-- **Evidence**: One held invoice released with an audited reason, and one still-blocked invoice in a payment batch attempt.
+- **Evidence**: `ERPbackend/app/matching.py` (the hold/release half) — `MatchHold` (one open hold per invoice, `uq_match_hold_open`, carrying the **run it is held against** so the override can be read against the verdict it overrode), `hold_invoice` refusing a cleanly matched invoice or an unmatched one, `hold_failed_matches` for the nightly sweep (skipping an exception already raised **for that verdict**, so a resolved one is not re-opened), `require_not_held` as the gate T-2.AP.04's payment selection calls, and `release`, which authorises through **T-0.SEC.01's `require`** (`match.override`) rather than deciding seniority in code and records actor, date and reason. `override_count` counts releases separately from clean matches. Check: `ERPbackend/tests/check_match_hold.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_match_hold.py`, exit 0) — green on all eight: AP-902 held against its partial run while the matched AP-901 was refused a hold; `require_not_held` refusing the held invoice by name; a clerk refused (`'clerk.jo' may not 'match.override'`) while a controller released it; the release recording fin.ada / 2026-11-30 / its reason, with a reasonless release refused; **no new `MatchRun`** written and the partial verdict byte-identical after the override; the rate staying 50.0000 % with the override counted separately; the sweep holding only the unresolved AP-903 and the invoice leaving the hold on release; and holding twice, holding without a reason, releasing a release and holding an unmatched invoice all refused.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Phase Exit Gate
 
