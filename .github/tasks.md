@@ -991,10 +991,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `company_id`, `base_currency`.
 - **Dependencies**: T-2.AP.01, T-2.AP.04
 - **Acceptance Criteria**: Subledger open balance equals the control account to currency precision for any period; an injected mismatch is reported rather than swallowed; the reconciliation runs per company.
-- **Evidence**: A clean reconciliation plus a reported mismatch case.
+- **Evidence**: `ERPbackend/app/ap/reconciliation.py` — `reconcile()` compares the subledger's **derived** open balance (`open_amount`, so a payment or a debit note moves both sides by construction) against the payables control account read from `journal_line` joined to its entry, **per currency**, because that is the unit both sides were posted in and a base-currency comparison would need a rate neither side stored; it returns the difference and a verdict and **corrects nothing**. Check: `ERPbackend/tests/check_ap_reconciliation.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_ap_reconciliation.py`, exit 0) — green on all seven: invoice and control account both reading 1120.000000; a 500.00 settlement leaving both at 620.000000 and a 20.00 debit note taking both to 600.000000; PHP 600.000000 and USD 224.000000 compared separately, each against its own entry; an injected 300.00 straight to the control account reported as `a difference of -300.000000` rather than absorbed; a period starting after the last posting reading 0.000000 against an open 600.000000; and an empty currency reading nil on both sides while a company with no invoices states there is nothing to compare.
 - **Estimated Effort**: S
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `MATCH` — 3-way matching (§2.3)
 
