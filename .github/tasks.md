@@ -1039,10 +1039,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
   - Every step's postings balance, and the AP subledger equals the payables control account — §6 metrics 1 and 2 principles
   - A failed match blocks payment until an authorised, audited release
   - Supplier tax is applied per the localization pack on every document in the cycle
-- **Evidence**: The end-to-end run with each document id, the measured match rate, the reconciliations, and the blocked-then-released exception.
+- **Evidence**: `ERPbackend/tests/check_phase2_exit.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_phase2_exit.py`, exit 0) — **one cycle, driven through every module the phase built**, and all five of this gate's criteria hold:
+  - **the cycle, with no re-keying** — `REQ-G1` (11000.000000) approved, issued as `RFQ-G1` to ACME, BOREAL and CHIRP, answered by ACME (both lines) and BOREAL (both lines, **late**), silent from CHIRP; awarded as `PO-G1` (10750.000000 from ACME's own quote) and `PO-G2` (240.000000 from BOREAL's), both approved; received as `GRN-G1` (115 accepted, 10750.000000) and `GRN-G2` (5 accepted, 1 **rejected**); invoiced as `AP-G1` and `AP-G2`; matched; paid by `PB-G1` (12362.560000) which settled both. No figure is typed twice — each is carried from the document that decided it
+  - **the match rate, measured** (§6 metric 3) — 100.0000 % over the clean month (`met: True`) and 50.0000 % over the whole dataset (`met: False`) reported against the 95 % target, so the metric is shown to be mettable and not merely computed
+  - **the postings and the control account** (§6 metrics 1–2) — the T-0.CORE.02 ledger gate returns 0 over the **stored** ledger for the whole cycle, and `reconcile` reports the AP subledger equal to the payables control account (both 0.000000 after settlement)
+  - **a failed match blocks payment** — `AP-G2` was held, refused by `require_not_held` and refused entry into a payment batch twice, then released by an authorised override recorded against fin.ada / 2026-12-18 / its reason, and counted as an override rather than a clean match
+  - **supplier tax per the pack** — `VAT-IN-12` at 12 % resolved from the installed pack for `purchase_order`, `goods_receipt` and `supplier_invoice` alike, `tax_on(10750)` = 1290.000000, the figure AP-G1 carries, and the T-2.PROC.08 check scans that module for a hard-coded market
+  **Finding recorded, not papered over**: the Phase 1 seed (`tests/seed.py`) maps a goods receipt's counterpart (`stock_receipt`) to the payables control account. That is right while nothing else books the same liability, but once Phase 2's supplier invoice posts to `payables` the receipt would credit it a second time and the control account would stop agreeing with the subledger. The gate therefore maps `stock_receipt` to its own liability account `2050` *Goods Received Not Invoiced* — mapping is configuration (T-1.ACCT.03) — and asserts that account holds 10990.000000 while AP reconciles at nil. A future phase that adopts the seed's mapping for invoices must choose between the two postings deliberately.
 - **Estimated Effort**: M
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ---
 
