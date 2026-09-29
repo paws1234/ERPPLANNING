@@ -872,10 +872,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `transaction_currency`, `tax_pack`, `approval_levels` (if PO approval applies).
 - **Dependencies**: T-2.PROC.03, T-2.PROC.04
 - **Acceptance Criteria**: Awarding generates a PO whose lines carry the awarded price, supplier, requisition reference and required date with no re-keying; an award cannot exceed the requisitioned quantity without explicit override; a partial award leaves the remaining lines available for award.
-- **Evidence**: One requisition awarded to two suppliers producing two POs, with the remaining quantity still awardable.
+- **Evidence**: `ERPbackend/app/procurement/orders.py` — `PurchaseOrder`/`PurchaseOrderLine` (the order keeps `requisition_id` **and** `rfq_id`; each line keeps its `rfq_line_id` and `requisition_line_id`, which is what makes T-2.MATCH.01's comparison answerable later) and `award()`, which writes the order from the winning **response's own lines** so no price is re-keyed. `remaining_awardable` derives what is still open per RFQ line from the orders already raised rather than from a counter that could drift, and an over-award refuses unless `override_reason` is given, which is then stored on the order. Every entry is validated **before** the order row is created, so a refused award leaves nothing half-written behind. Check: `ERPbackend/tests/check_po_generation.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_po_generation.py`, exit 0) — green on all seven: PO-2001 generated from ACME's quote carrying 980.00/255.50 with the requisition reference and the required date and totalling exactly 21980.000000; a partial award (12 of 20, all 40) leaving `{1: 8, 2: 0}` open and BOREAL then awarded the remaining 8 **at its own price** (1005.00); a non-responder (CHIRP) and a line a responder was silent about (BOREAL's line 2) both refused with no price invented; over-awarding refused (`asked for 20.000000 and 20.000000 is already awarded`) and accepted only with a reason recorded verbatim on the order; an award against an unapproved requisition refused; and a repeated order number, a zero quantity, an empty award and an unstated actor all refused, with `order_by_number` resolving the generated order.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-2.PROC.06
 - **Title**: Purchase order lifecycle — approve, amend, close
