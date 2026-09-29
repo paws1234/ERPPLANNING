@@ -924,10 +924,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: scoring weights (per company — not stated in the plan), `company_id`.
 - **Dependencies**: T-2.PROC.06, T-2.PROC.07
 - **Acceptance Criteria**: Each score derives from recorded documents, not manual entry; the inputs (promised date vs receipt date, ordered vs received quantity, rejections) are traceable to their source documents; the scorecard shows the weights used; a supplier with no receipts is shown as unrated rather than scored zero.
-- **Evidence**: Scorecards for two suppliers with different performance, each input traced to a document.
+- **Evidence**: `ERPbackend/app/procurement/scoring.py` — `scorecard()` derives four figures from **posted** receipts only: on-time (receipt date against the order's required date), quantity (received against ordered), quality (accepted against accepted+rejected, both already on the receipt line) and price (awarded against the requisition's estimated price — the variance Phase 2 can evidence from its own documents; invoice-price comparison is T-2.MATCH.01's three-way job). Every figure carries an `inputs` row naming the order, receipt and line it came from, the weights are returned with the score (`scoring_weights`, equal by default because the plan leaves `scoring_weights` undecided), and a supplier with no receipts is `rated: False` with **no score** rather than zero. Check: `ERPbackend/tests/check_supplier_scorecard.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_supplier_scorecard.py`, exit 0) — green on all seven: GOOD scoring 100.000000 from `PO-501`/`GRN-501`; the unposted `GRN-503` absent from the scorecard entirely; POOR scoring 48.750000 from `{on_time 0, quantity 60, quality 60, price 75}` and ranking below GOOD; NEW unrated with a stated reason and no score; a `3/1/1/0` weighting reported back and changing POOR's score to 24.000000 while a negative weight, an unknown metric and an incomplete weight set are refused; and a date window excluding the receipt making GOOD unrated again.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `AP` — Accounts Payable (§2.1)
 
