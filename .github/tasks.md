@@ -978,10 +978,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `payment_batch_schedule`, `approval_levels`/`approval_thresholds`, `bank_file_format`, `transaction_currency`.
 - **Dependencies**: T-2.AP.01, T-2.MATCH.01
 - **Acceptance Criteria**: A batch cannot include an invoice that has failed 3-way matching (metric-facing, see T-2.MATCH.02) or is otherwise on hold; execution posts one balanced entry per settled invoice; partial settlement leaves the correct remaining balance; a batch cannot be executed twice; removing an invoice after execution is impossible.
-- **Evidence**: One executed batch with a partial and a full settlement, plus a rejected attempt to include a held invoice.
+- **Evidence**: `ERPbackend/app/ap/payments.py` — `PaymentBatch`/`PaymentBatchLine` with the approval routed through **T-0.WF.01** (`doc_type = "payment_batch"`), `create_batch` checking every invoice it selects (posted, owing, one currency, and **`require_not_held`** from T-2.MATCH.02), `execute_batch` re-checking the hold **at payment time** as well and posting **one balanced entry per settled invoice** (payables debited, bank credited, through T-1.ACCT.03's mapping) while writing the settlement T-2.AP.01 and T-2.AP.02 read, and `bank_file` writing the pack's own columns (`bank_file_format`) in its order, **refusing** a required column with no value. Check: `ERPbackend/tests/check_payment_batch.py`, run 2026-09-29 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_payment_batch.py`, exit 0) — green on all eight: PB-401 selecting AP-401 + AP-402 for 1456.000000; a draft invoice, a mixed-currency batch, an unknown invoice and a fully settled one refused with their reasons; both invoices settled and two balanced entries posted with the batch's paid total equal to the settlements it wrote; an unapproved batch and a second run refused; a paid line stuck in its batch while a draft releases its invoice; a held invoice refused at build time **and** a hold raised after the build stopping the run; the bank file's own header `payee_name,payee_account,bank_code,amount,reference,purpose` with a supplier holding no bank account stopping it; and a repeated number plus an empty batch refused.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-2.AP.05
 - **Title**: AP to GL reconciliation and payables control check
