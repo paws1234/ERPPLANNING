@@ -43,9 +43,10 @@ The rest of this file may only ever act on that single id.
 7. If yes → mark `DONE`, do not rewrite it
 8. If no → climb the ladder, then ship the **shortest working diff** that meets acceptance criteria
 9. Leaves **one runnable check** for non-trivial logic
-10. **Runs what the pipeline runs, locally** — the repository's own checks, after the last edit and **before anything is committed**, so a red pipeline is found here and never on the remote (*Phase D — “Run the pipeline's checks”*)
-11. **Ends with the hand-off ask** — every finished task's last act is asking to **commit, push and open the MR/PR** (Phase F). Nothing leaves the machine before that answer
-12. **Stops.** The next task waits for the next invocation
+10. **Reads its own diff cold** — the code review, against a list of the defect classes reviews on this codebase actually catch, with everything it finds fixed in the same diff rather than left for the reviewer (*Phase D — “The code review”*)
+11. **Runs what the pipeline runs, locally** — the repository's own checks, after the last edit and **before anything is committed**, so a red pipeline is found here and never on the remote (*Phase D — “Run the pipeline's checks”*)
+12. **Ends with the hand-off ask** — every finished task's last act is asking to **commit, push and open the MR/PR** (Phase F). Nothing leaves the machine before that answer
+13. **Stops.** The next task waits for the next invocation
 
 It does **not** re-plan. It does **not** expand scope. It does **not** batch tasks. It does **not** “while we’re here” neighboring tasks.
 
@@ -236,6 +237,26 @@ Lazy code without its check is **unfinished**.
 
 Do not add a test suite, harness, or factory. One check.
 
+### The code review — read the diff cold, before the commit (never skipped)
+
+**Every review of this repository's work so far has found real defects.** Two rounds on the Phase 3 batch returned **13 findings and not one was a false positive**: tenant holes that let one company's row name another's, a movement trail that was not append-only, a `closed_at` left set when a card reopened, a customer's currency dropped in a conversion, a permission query run once per row, `Number` used for money, and a contract promising a field a restriction can hide. Every one of them was visible in the diff. So the diff is read before it is committed — by this run, not only by whoever reviews the MR.
+
+**Read it cold.** After the last edit and **before `git add`**, read `git diff` in every repository this run touched — file by file, as someone who did not write it and is trying to find the hole. Then walk this list, which is what reviews on this codebase actually catch:
+
+* **Tenant consistency.** Every function taking more than one id proves they form one company-owned chain — and each other. A service that trusts its arguments is the hole.
+* **History is append-only.** A new trail or history table is registered `append_only()`, and nothing updates one. A current-state column on the parent is how state changes without rewriting the trail.
+* **Money is exact.** Backend: `MONEY`/`Decimal`, never a float. Frontend: scaled integers at the platform's money scale, never `Number` — not in a sum, a comparison or a default. `Number("")` is `0` and `Number("1.005000")` loses the tail; both are bugs, not shorthand.
+* **A hidden field can be any field.** No response model may mark one required; the permission set is read **once per list**, never once per row; absent, `null` and zero are three different things, and only *absent* is a permission fact.
+* **A state transition clears what it derives.** Reopening, undoing or reversing resets the flags the first transition set, or the record reads as finished while it is open.
+* **Refuse what cannot be checked.** Non-finite decimals, malformed codes, unknown kinds, a value the schema cannot hold — refused **at entry**, by a **named** error, never a bare exception and never a silent default.
+* **Reuse the repository's own answer.** It already has an identity helper, a money scale, a numbering convention, a check loop, a refusal shape. A second copy of any of them *is* the defect.
+* **A deliberate shortcut is a ponytail** naming its ceiling and its upgrade path — and nothing else is allowed to be a shortcut.
+* **The check exercises the refusal.** A fix with no assertion beside it is a claim, not evidence.
+
+**Fix what it finds in the same diff**, then re-read the fix, then run the checks below — a review that changed the tree invalidates a run that came before it. Record the review in the task's evidence: what was looked for, what it found, what changed. **Finding nothing is a legitimate outcome after the list is walked, never instead of walking it.**
+
+This is not a substitute for the repository's own review (a PR reviewer, a Copilot review, a teammate); it exists so those review the *design* instead of the holes a cold read would have caught.
+
 ### Run the pipeline's checks — locally, before the commit (never skip)
 
 A task's own check is not enough. **Whatever the repository's pipeline runs on the remote, run locally — in every repository this run changed, after the last edit, and before anything is committed.**
@@ -257,7 +278,8 @@ Before marking `DONE`:
 3. The one runnable check exists if logic was non-trivial — and it was run
 4. No new dependency unless the task named it and the ladder could not avoid it
 5. Ponytail comments present on any known-ceiling shortcut
-6. **The pipeline's own checks were run locally, after the last edit, in every repository this run changed — and they are green.** A task is not closed on a red pipeline:
+6. **The diff was read cold against the code-review list in Phase D, and everything it found is fixed in this diff** — a review that found nothing must be able to say the list was walked, not that the code looked fine
+7. **The pipeline's own checks were run locally, after the last edit, in every repository this run changed — and they are green.** A task is not closed on a red pipeline:
 
 Then:
 
@@ -291,7 +313,7 @@ Then:
 
 **One commit per repository**
 
-- **Before staging anything: the pipeline's checks pass locally** (*Phase D* — “Run the pipeline's checks”). If any file changed after that run, run it again; it covers the state being committed, not the state that was checked an hour ago. Committing a change whose pipeline is red — or that was never run through it — is not allowed, and neither is leaving it for the remote to discover.
+- **Before staging anything: the diff has been read cold** (*Phase D* — “The code review”), **and the pipeline's checks pass locally** (*Phase D* — “Run the pipeline's checks”). If any file changed after either of those, do it again; they cover the state being committed, not the state that was checked an hour ago. Committing a diff nobody has read, or one whose pipeline is red — or that was never run through it — is not allowed, and neither is leaving it for the remote to discover.
 - Run git with the repository as the working directory, one repository at a time. A task that touched several repositories produces **one commit in each**, in the same run, and the report names them all.
 - The ledger update (`tasks.md`) is part of this run's diff and belongs in the planning repository's commit — not left floating in the working tree.
 - **Stage only the files this task changed.** Never `git add -A`, `git add .` or `git commit -a`. Read `git status --short` and `git diff` in that repository first.
@@ -308,6 +330,7 @@ Then:
 - Add, change or remove a remote, or push to a repository the ledger does not name
 - Commit files the task did not change, or as another author
 - Commit, push or hand off a change whose pipeline's own checks were not run locally, or that is red locally — the remote is not the place to find out
+- Commit or push a diff that was never read cold against the code-review list (*Phase D*), or hand off one whose review finding is left as follow-up work — a review finding is fixed in the diff that caused it
 - Treat silence as consent: an unanswered ask leaves the work uncommitted
 - Substitute a smaller git action for the one asked — a local-only commit, a parked branch or an unasked push decided by the run itself
 
@@ -344,6 +367,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Add “helpful” layers, folders, frameworks, or config the task did not name
 - Duplicate an existing helper
 - **Commit or push a diff whose pipeline's own checks were not run locally, or that is red** — the remote is not where a failure should be discovered
+- **Skip the code review, or treat a review that found nothing as optional** — the diff is read cold and the list is walked before anything is staged
 - Fix a symptom in one caller and leave the others
 - Skip Phase A/B (ledger + already-implemented scan)
 - Skip tracing the real flow
@@ -364,6 +388,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 4. Ladder rung used (1–7)
 5. Diff: fewest files, shortest working change (or no diff if already done)
 6. One runnable check (if non-trivial) — executed
-7. `tasks.md` updated for that id
-8. **The hand-off, always last**: the ask — commit, push and open the MR/PR — and the user's answer, with per repository the branch, commit hash, push state and MR/PR URL; or that the ask went unanswered, the paths are left uncommitted, and the ask is recorded as a `## Pending hand-off` in `tasks.md` for the next run to re-ask
-9. A closing line naming the **next** runnable id — reported, **not started**
+7. **The cold read of the diff**: what the code-review list turned up and what changed because of it — or that the list was walked and found nothing
+8. `tasks.md` updated for that id
+9. **The hand-off, always last**: the ask — commit, push and open the MR/PR — and the user's answer, with per repository the branch, commit hash, push state and MR/PR URL; or that the ask went unanswered, the paths are left uncommitted, and the ask is recorded as a `## Pending hand-off` in `tasks.md` for the next run to re-ask
+10. A closing line naming the **next** runnable id — reported, **not started**
