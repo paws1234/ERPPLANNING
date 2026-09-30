@@ -1,38 +1,5 @@
 # Tasks — Derived from plan.md
 
-## Pending hand-off
-
-**Asked 2026-09-30 — Phase F of `/do-task-one-go`, batch `T-2.AP.02` → `T-2.AP.05` → `T-2.X.GATE` — and unanswered.** The user was not available, so **no git action was taken in any repository**: no commit, no branch, no push, no PR. Every path below is still uncommitted in the working tree. This record **is** the question — carry out the chosen flow and delete this section in that run. Do not ask it again.
-
-**The batch — all three ids `DONE`, Phase 2 closed in the tree (52 DONE → 55 DONE, 67 TODO → 64 TODO):**
-
-| id | Status | Repository | Changed paths |
-|---|---|---|---|
-| `T-2.AP.02` | DONE | backend | `app/ap/aging.py`, `tests/check_ap_aging.py` |
-| `T-2.AP.05` | DONE | backend | `app/ap/reconciliation.py`, `tests/check_ap_reconciliation.py` |
-| `T-2.X.GATE` | DONE | backend (+ this ledger) | `tests/seed.py`, `tests/check_phase2_exit.py`, `tests/check_supplier_invoice.py` |
-
-**Repository state — all three left on `main`, checked out where they were found:**
-
-| Repo | Branch | HEAD | State |
-|---|---|---|---|
-| `ERPbackend` | `main` | `0c17a29` | **dirty** — 7 files modified, uncommitted |
-| `ERPV1` (planning) | `main` | `28b3ae7` | **dirty** — `.github/tasks.md` modified, uncommitted (this section included) |
-| `ERPfrontend` | `main` | `1994fe4` | clean — **not touched**; no frontend commit is needed, the published contract did not change |
-
-**Uncommitted paths in full:** `ERPbackend/app/ap/aging.py` · `ERPbackend/app/ap/reconciliation.py` · `ERPbackend/tests/seed.py` · `ERPbackend/tests/check_ap_aging.py` · `ERPbackend/tests/check_ap_reconciliation.py` · `ERPbackend/tests/check_phase2_exit.py` · `ERPbackend/tests/check_supplier_invoice.py` · `.github/tasks.md`.
-
-**The choices, verbatim:**
-
-1. **Commit + push + open the PRs** — branch `one-go/T-2.AP.02` in both repositories, one commit per task, pushed, PRs opened against `main` (recommended)
-2. **Commit + push** to the branch that is checked out now — no PRs
-3. **Commit only** — leave the push to the user
-4. **Skip** — leave everything uncommitted
-
-**Before committing:** re-run the pipeline's own checks locally in `ERPbackend` — the CI loop over `tests/check_*.py` (`check_backend_image.py` and `check_compose_stack.py` excluded, `check_ledger_integrity.py` last) — against a state that includes every file above. The run recorded here was green: **45/45** (44 checks + the ledger gate), with `ERPfrontend`'s `npm run check` also green on `1994fe4`.
-
-**Note for the run that answers this:** `ERPfrontend`'s `main` moved during this batch (`a82c2cd` was red on a Node 22 test-discovery bug; `1994fe4` fixed it). The frontend was fast-forwarded and re-checked, but that commit is the user's, not this batch's.
-
 ## Source
 
 - **Plan**: `.github/plan.md` (read-only; this ledger never mutates it)
@@ -1098,10 +1065,15 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `credit_limit`, `credit_check_mode`, `transaction_currency`, `company_id`.
 - **Dependencies**: T-0.PARTY.01, T-0.AUDIT.02
 - **Acceptance Criteria**: A customer is created from an existing or new party with the customer role and can also be a supplier without duplication; a credit limit is stored (including zero meaning "no credit") and distinguishes "no limit set" from "limit zero"; addresses are reusable across documents; referenced customers cannot be deleted.
-- **Evidence**: A dual-role party as customer and supplier, plus the two credit-limit states distinguished.
+- **Evidence**: **DONE 2026-09-30** — `ERPbackend/app/sales/customers.py` (new package `app/sales/`) + `ERPbackend/tests/check_customer_master.py`, run green against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_customer_master.py`, exit 0), then the whole backend sweep re-run green on the same tree (45/45 — 45 checks incl. this one, plus the ledger-integrity gate). The check substantiates every criterion in the tree:
+  - **a dual-role party** — `create_customer` on a party that is already a supplier (created through T-2.PROC.01's own `create_supplier`) adds the **customer role to the same party**: one `party` row, two `party_role` rows, one tax number, and both profiles share one `party_id`. A second `create_customer` for that party is refused by name (`DuplicateCustomerError`).
+  - **the two credit-limit states distinguished** — `credit_limit` is a nullable `Numeric(20,6)`: `NULL` is *no limit agreed*, `0` is *no credit at all*, and `25000.50` is a real ceiling. All three are stored and read back through `credit_limit_of()` differently (the check asserts `None` · `Decimal("0")` · `Decimal("25000.50")`), withdrawing with `None` returns to *unset* rather than zero, a negative and a **float** limit are refused at entry (`InvalidCustomerDataError`), and the database refuses a negative one written by hand past the function (`ck_customer_credit_limit`).
+  - **addresses reusable across documents** — `customer_address` rows are referenced **by id**: the check's two probe documents point at the *same* address row and both resolve it. At most one primary stands **per kind** (a partial unique index on `(customer_id, kind) WHERE is_primary`), so a new primary billing address demotes the previous one while the shipping address keeps its own flag, and the database refuses a hand-written second primary of a kind. `add_address` validates at entry (blank line, unknown kind, a country that is not ISO 3166-1 alpha-2 refused); `add_contact` refuses a malformed e-mail; an unregistered currency is refused through T-1.ACCT.05's own master.
+  - **referenced customers cannot be deleted** — `deny_hard_delete` refuses `DELETE` ("… is a master"); `retire_customer` refuses while a document names the customer, scanning the schema for foreign keys into `customer` (the check's `probe_sales_document` is what fires, and `documents_naming` picks up a real document table the day it appears) and marks the row otherwise; a party without the customer role is not found by `customer_by_code`.
+  **Not in scope, deliberately**: enforcement of the limit (T-3.AR.06 computes exposure, T-3.SALES.04 makes the order-time decision) and the sale-side documents themselves. `app/api.py` gained no endpoint and the published contract is unchanged, so the frontend repository needed no commit for this id.
 - **Estimated Effort**: S
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.SALES.02
 - **Title**: Lead and opportunity pipeline (Kanban)
@@ -1111,10 +1083,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: pipeline stages (per company — plan names no stages), `rbac_roles`, `company_id`.
 - **Dependencies**: T-3.SALES.01, T-0.SEC.01
 - **Acceptance Criteria**: Stages are configurable without code change; moving a card records who moved it and when; a won opportunity can be converted to a quotation with the customer details carried over (note: the pipeline slot in §4 Phase 3 is inferred — see Open Questions); a lost opportunity records a reason; the board respects field-level permissions so values can be hidden from some roles.
-- **Evidence**: One opportunity moved from first to won stage and converted, with the stage history and a permission-restricted value.
+- **Evidence**: **DONE 2026-09-30** — `ERPbackend/app/sales/pipeline.py` + `ERPbackend/app/sales/quotations.py` + `ERPbackend/tests/check_pipeline.py` (green against a scratch PostgreSQL 16, exit 0), the board served by `GET /api/v1/pipeline/board` in `app/api.py` with the contract republished, and the frontend half in `ERPfrontend/lib/pipeline.ts` + `app/pipeline/page.tsx` + `tests/pipeline.test.ts` (5/5 subtests green). Every criterion is substantiated in the tree:
+  - **stages configurable without code change** — `pipeline_stage` rows, with `is_won`/`is_lost` carrying the *meaning* while the names stay the company's; a company defines its own columns, inserts one between two others, and a duplicate name or position is refused by name (`DuplicateStageError`) while the database's own constraints hold too (`ck_pipeline_stage_won_or_lost` evidence a both-won-and-lost stage written by hand). A company with no board is refused an opportunity rather than given a default column, and a stage anything still references — a card standing in it **or** a recorded move naming it — cannot be removed (`StageInUseError`).
+  - **moving a card records who and when** — every movement writes an `opportunity_move` row: the from-stage, the to-stage, the actor and the instant, and `create_opportunity` records the opening move so a deal's history starts where it was created. The check reads the trail back in order and asserts the actor and timestamp.
+  - **a won opportunity converts once, with the customer carried over** — `convert_to_quotation` refuses a card in a non-won stage (`NotWonError`), and the quotation it produces links to the customer **row** (`customer_id`) and back to the opportunity; a second conversion is refused (`AlreadyConvertedError`) and the schema's own partial unique index (`uq_quotation_opportunity`) refuses a hand-written second quotation for one win. `app/sales/quotations.py` holds the header only — T-3.SALES.03, which depends on this task, adds the priced lines, validity and the order conversion.
+  - **a lost opportunity records a reason** — moving into a loss column without one is refused (`LostReasonRequiredError`), with one it is recorded on both the move and the card, and the card's `closed_at` is stamped.
+  - **the board respects field-level permissions** — `board()` filters each card through T-0.SEC.01's `readable_fields`, so a restricted field is **absent** rather than nulled. Proved twice: backend (`tests/check_pipeline.py` gives a junior role `can_read=False` on `opportunity.value` and asserts the key is missing from every card while an unrestricted subject still sees it) and frontend (`lib/pipeline.ts` reports such cards as `withheld` and never folds them into the total — the test asserts a hidden card is not counted as zero while an explicit `"0"` is).
+  **Routing finding (reported, not silently resolved)**: the ledger's `## Repositories` map lists `T-3.SALES.02` under the **frontend** repository, but four of its five acceptance criteria are domain rules that can only live in the backend, and the frontend cannot render a board without a published endpoint. This task therefore landed in **both** repositories, in this one run, as the map's own "Both — client in the frontend repo, API and postings in the backend repo" category describes; the map's frontend-only line for this id should be moved to that category. Contract republished (`contract/v1/openapi.json`, +225 lines) and re-vendored into the frontend byte for byte, types regenerated.
 - **Estimated Effort**: M
 - **Owner Role**: Frontend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.SALES.03
 - **Title**: Quotations and quotation-to-order conversion
