@@ -206,6 +206,19 @@ For **each** selected id, in dependency order, sequentially — never in paralle
 
 **Never** run two tasks as one diff; never write one task's code under another's id; never let a task grow outside its ledger scope merely because the batch is large.
 
+### The code review — read the diff cold, before the commit (every id, then once for the batch)
+
+**Per id, this is `/do-task`'s review, unchanged** (*`/do-task` Phase D — “The code review”*): after that id's last edit and **before its commit**, read its `git diff` cold and walk that list — tenant consistency, append-only history, exact money, hidden-field states, cleared derived state, refusals at entry, reuse of the repository's own helpers, a ponytail on every deliberate ceiling, and a check that exercises the refusal. **Read the list in `/do-task`; it is the same list, and it is not decoration** — two review rounds on the Phase 3 batch returned 13 findings, not one of them a false positive, and every one of them was visible in the diff.
+
+**Then once more over the whole batch, before the branch is pushed.** The batch is reviewed as one MR/PR, so read `git diff main...HEAD` — *not* the per-id diffs again — for what only appears when the tasks are read together:
+
+* two ids that added the same helper twice, or contradicted each other's convention
+* a shared file whose later hunks were written after the earlier id's read and never re-read
+* a task that widened or narrowed what an earlier task's evidence claims
+* a batch summary that overstates what the checks prove, or a check that passes because it does not exercise the new refusal
+
+**Fix in the owning id's diff**, never in a follow-up commit, and never in a "review" commit that hides which task the finding came from. A batch is not a licence to review once at the end — an earlier id's review does not cover a later id's diff, exactly as its green pipeline run does not.
+
 ### Run the pipeline's checks — locally, before the commit (every id, never skipped)
 
 An id's own check is not enough. **Whatever the repository's pipeline runs on the remote, run locally — in every repository the batch changed, after that id's last edit, and before anything is committed.**
@@ -239,10 +252,11 @@ Before the hand-off:
 
 1. Every selected id has a final status and recorded evidence
 2. Per id: scope not exceeded, the check exists where logic was non-trivial and was run, no unrequested dependency, ponytails present
-3. **The pipeline's own checks were run locally in every repository the batch changed, after each id's last edit, and they are green** — the batch is never handed off on a red pipeline
-4. The batch summary table: id · status · repository · files · check · evidence
-5. The ids that stopped early, with the reason and what remains queued
-6. Nothing outside the selection was written
+3. Per id: **its diff was read cold, and everything the review list found is fixed in that id's diff** — plus the **batch-wide** read of `git diff main...HEAD`, with whatever it found fixed in the owning id's diff
+4. **The pipeline's own checks were run locally in every repository the batch changed, after each id's last edit, and they are green** — the batch is never handed off on a red pipeline
+5. The batch summary table: id · status · repository · files · check · evidence
+6. The ids that stopped early, with the reason and what remains queued
+7. Nothing outside the selection was written
 
 ---
 
@@ -264,7 +278,7 @@ Before the hand-off:
 
 ### Branching and commits
 
-- **Before staging anything: the pipeline's checks pass locally** (*Phase D* — “Run the pipeline's checks”), in every repository the batch changed. If any file changed after that run, run it again; it covers the state being committed, not the state that was checked an hour ago. Committing a change whose pipeline is red — or that was never run through it — is not allowed, and neither is leaving it for the remote to discover.
+- **Before staging anything: every id's diff has been read cold and the batch-wide read is done** (*Phase D* — “The code review”), **and the pipeline's checks pass locally** (*Phase D* — “Run the pipeline's checks”), in every repository the batch changed. If any file changed after either of those, do them again; they cover the state being committed, not the state that was checked an hour ago. Committing a diff nobody has read, or one whose pipeline is red — or that was never run through it — is not allowed, and neither is leaving it for the remote to discover.
 - **One branch per repository for the whole batch**, named `one-go/<first-task-id>` (e.g. `one-go/T-0.API.01`). The batch is reviewed as one MR/PR per repository, not one per task.
 - **One commit per task, per repository**, in run order. Subject `T-<id>: <what changed>` unless the repository's own convention differs (a `CONTRIBUTING.md`, a visible history). The task id appears in the message, so each commit and its ledger evidence are findable from each other.
 - The ledger update for a task belongs in the **planning repository's** commit for that task — not left floating in the working tree.
@@ -281,14 +295,32 @@ Before the hand-off:
 - Force-push, amend, rebase or otherwise rewrite pushed history
 - `--no-verify`, a hooks-path override, or any flag that skips a check — if a hook fails, stop and report it
 - Commit, push or hand off a change whose pipeline's own checks were not run locally, or that is red locally — the remote is not the place to find out
+- Commit or push a diff that was never read cold — per id, or batch-wide before the push — or hand off one whose review finding is left as follow-up work: a review finding is fixed in the diff that caused it
 - Add, change or remove a remote, or push to a repository the ledger does not name
 - Commit files a task did not change, or as another author
 - Treat silence as consent: an unanswered ask leaves the work uncommitted
 - Substitute a smaller git action for the one asked
+- Call the batch finished the moment its MR/PRs exist: each remote is **asked for its review**, each request is read as its reviewer meets it, and every finding is triaged against the code
+- Answer a review finding by rewriting pushed history (an amend or a force-push): after the push a finding is a **new commit** on the same branch, labelled with the id that owns it
 
 ### Report
 
 Per repository: branch, one line per task commit (id + hash), pushed or not, and the MR/PR URL — or that the hand-off was skipped, with the paths left uncommitted. Always say the ask was put and what the answer was; "asked, not yet answered" is a complete report. Say which branch each repository was left on: the next run returns to `main` first.
+
+### After the MR/PR is open — the review the request draws (never skipped either)
+
+**The push is not the finish line; the review of what was pushed is.** The batch-wide read (*Phase D*) is still the author reading its own work. This project's history says that is not enough: a review on backend PR #10 returned **9 findings** and one on frontend PR #7 returned **4** — **13 of 13 real** — both after those diffs had been read cold, checked and pushed. A pushed branch is a public artifact, and what its review finds is still this run's job.
+
+Once the batch's MR/PRs are open:
+
+* **Ask each remote for its own review, and say in the report that it was asked for.** On GitHub the Copilot reviewer **cannot** be requested with the API token this run holds — `POST …/requested_reviewers` answers `422 Reviews may only be requested from collaborators` — so the ask is either the repository's own automatic review or a click in each request's *Reviewers* menu. Whichever it is, **say which**; never pass over the step in silence, and never write off the reads below because the automated reviewer did not appear.
+* **Read each request the way its reviewer meets it** — `git diff main...HEAD` *in the MR/PR*, not the local diff already read, and **per repository**: a batch spans repositories, and its MR/PRs are read one at a time.
+* **Triage every finding against the code, not against the review's tone.** "Already handled" has to be *shown*, with the line that handles it. A finding is never dismissed because the review was automated — on this codebase that reviewer has consistently been right.
+* **Attribute each finding to the id that owns it, and fix it there.** Before the push that is the owning id's diff (*Phase D*, re-read and re-checked). After it — and pushed history is never rewritten — it is **a new commit on the same branch**, labelled with that id, pushed on top. Never an amend, never a force-push, and never one anonymous "review fixes" commit that hides which task the finding came from.
+* **A finding outside every selected id's scope is a new task**, named in the report — the same rule as any other out-of-scope repair, and never a silent fix.
+* **Read the pipeline run on the pushed head in every repository.** Green on the remote is evidence the ledger can point at; red is the stop condition it is locally.
+* **Record it**: in each owning id's evidence, what the review was, what it found, which id owns each finding, the follow-up commit hash, and what the checks said afterwards. A review that found nothing must say it was asked for and the list was walked.
+* **A finding does not reopen a `DONE` id.** The evidence line is amended under the id that owns the fix — that is where a later run reads it.
 
 ---
 
@@ -311,6 +343,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Start any work while the selection question is unanswered
 - Skip the per-task already-implemented proof, the ladder, the trace of the real flow, the one-runnable-check rule, or the repository routing — a batch is not a licence to move faster per task
 - **Commit or push a diff whose pipeline's own checks were not run locally, or that is red** — and never treat an earlier id's green run as covering a later id's diff
+- **Skip the code review** — neither an earlier id's cold read covering a later id's diff, nor the batch-wide read of `git diff main...HEAD` before the push, may be skipped, and a review that found nothing must say the list was walked — and the open MR/PRs are then **asked for their review**, per repository, with every finding triaged and attributed to the id that owns it
 - Run tasks in parallel, or fold two tasks into one diff or one commit
 - Continue past a stop condition, or substitute a different task for the one that stopped
 - Add "helpful" layers, folders, frameworks or config a task did not name
@@ -327,6 +360,8 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 2. The inventory (counts per status) and the **selectable set**: lanes, runnable ids, recommended lane, and one line per blocked id
 3. **The selection**: what was offered, and exactly what the user chose
 4. Per task, in order: already-implemented verdict, ladder rung, files changed, the check and its result, final status
-5. The batch summary table, plus any id that stopped early with the reason and what remains queued
-6. **The hand-off, always last**: the ask — commit, push and open the MR/PR for the batch — and the user's answer, with per repository the branch, one line per task commit, the push state and the MR/PR URL; or that the ask went unanswered, the paths are left uncommitted, and it is recorded as a `## Pending hand-off` naming the whole batch
-7. A closing line naming the **next** selectable id(s) — reported, **not started**
+5. **The cold read**: per id what the code-review list turned up and what changed because of it, plus what the batch-wide read of `git diff main...HEAD` turned up — or that both were walked and found nothing
+6. The batch summary table, plus any id that stopped early with the reason and what remains queued
+7. **The hand-off, always last**: the ask — commit, push and open the MR/PR for the batch — and the user's answer, with per repository the branch, one line per task commit, the push state and the MR/PR URL; or that the ask went unanswered, the paths are left uncommitted, and it is recorded as a `## Pending hand-off` naming the whole batch
+8. **The review of what was pushed** (when the batch has MR/PRs): that each remote's review was asked for, what it found, which id owns each finding fixed, the follow-up commits on the branches, and what the checks said afterwards — or that it was asked for and found nothing
+9. A closing line naming the **next** selectable id(s) — reported, **not started**
