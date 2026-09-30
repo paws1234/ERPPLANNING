@@ -1,38 +1,5 @@
 # Tasks — Derived from plan.md
 
-## Pending hand-off
-
-**Asked 2026-09-30 — Phase F of `/do-task-one-go`, batch `T-2.AP.02` → `T-2.AP.05` → `T-2.X.GATE` — and unanswered.** The user was not available, so **no git action was taken in any repository**: no commit, no branch, no push, no PR. Every path below is still uncommitted in the working tree. This record **is** the question — carry out the chosen flow and delete this section in that run. Do not ask it again.
-
-**The batch — all three ids `DONE`, Phase 2 closed in the tree (52 DONE → 55 DONE, 67 TODO → 64 TODO):**
-
-| id | Status | Repository | Changed paths |
-|---|---|---|---|
-| `T-2.AP.02` | DONE | backend | `app/ap/aging.py`, `tests/check_ap_aging.py` |
-| `T-2.AP.05` | DONE | backend | `app/ap/reconciliation.py`, `tests/check_ap_reconciliation.py` |
-| `T-2.X.GATE` | DONE | backend (+ this ledger) | `tests/seed.py`, `tests/check_phase2_exit.py`, `tests/check_supplier_invoice.py` |
-
-**Repository state — all three left on `main`, checked out where they were found:**
-
-| Repo | Branch | HEAD | State |
-|---|---|---|---|
-| `ERPbackend` | `main` | `0c17a29` | **dirty** — 7 files modified, uncommitted |
-| `ERPV1` (planning) | `main` | `28b3ae7` | **dirty** — `.github/tasks.md` modified, uncommitted (this section included) |
-| `ERPfrontend` | `main` | `1994fe4` | clean — **not touched**; no frontend commit is needed, the published contract did not change |
-
-**Uncommitted paths in full:** `ERPbackend/app/ap/aging.py` · `ERPbackend/app/ap/reconciliation.py` · `ERPbackend/tests/seed.py` · `ERPbackend/tests/check_ap_aging.py` · `ERPbackend/tests/check_ap_reconciliation.py` · `ERPbackend/tests/check_phase2_exit.py` · `ERPbackend/tests/check_supplier_invoice.py` · `.github/tasks.md`.
-
-**The choices, verbatim:**
-
-1. **Commit + push + open the PRs** — branch `one-go/T-2.AP.02` in both repositories, one commit per task, pushed, PRs opened against `main` (recommended)
-2. **Commit + push** to the branch that is checked out now — no PRs
-3. **Commit only** — leave the push to the user
-4. **Skip** — leave everything uncommitted
-
-**Before committing:** re-run the pipeline's own checks locally in `ERPbackend` — the CI loop over `tests/check_*.py` (`check_backend_image.py` and `check_compose_stack.py` excluded, `check_ledger_integrity.py` last) — against a state that includes every file above. The run recorded here was green: **45/45** (44 checks + the ledger gate), with `ERPfrontend`'s `npm run check` also green on `1994fe4`.
-
-**Note for the run that answers this:** `ERPfrontend`'s `main` moved during this batch (`a82c2cd` was red on a Node 22 test-discovery bug; `1994fe4` fixed it). The frontend was fast-forwarded and re-checked, but that commit is the user's, not this batch's.
-
 ## Source
 
 - **Plan**: `.github/plan.md` (read-only; this ledger never mutates it)
