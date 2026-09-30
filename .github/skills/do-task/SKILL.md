@@ -46,7 +46,8 @@ The rest of this file may only ever act on that single id.
 10. **Reads its own diff cold** — the code review, against a list of the defect classes reviews on this codebase actually catch, with everything it finds fixed in the same diff rather than left for the reviewer (*Phase D — “The code review”*)
 11. **Runs what the pipeline runs, locally** — the repository's own checks, after the last edit and **before anything is committed**, so a red pipeline is found here and never on the remote (*Phase D — “Run the pipeline's checks”*)
 12. **Ends with the hand-off ask** — every finished task's last act is asking to **commit, push and open the MR/PR** (Phase F). Nothing leaves the machine before that answer
-13. **Stops.** The next task waits for the next invocation
+13. **Reviews what was pushed** — asks the remote for its own review of the open MR/PR, reads the request the way its reviewer meets it, and triages every finding against the code, fixing real ones in the owning id's diff (*Phase F — “After the MR/PR is open”*)
+14. **Stops.** The next task waits for the next invocation
 
 It does **not** re-plan. It does **not** expand scope. It does **not** batch tasks. It does **not** “while we’re here” neighboring tasks.
 
@@ -333,6 +334,8 @@ Then:
 - Commit or push a diff that was never read cold against the code-review list (*Phase D*), or hand off one whose review finding is left as follow-up work — a review finding is fixed in the diff that caused it
 - Treat silence as consent: an unanswered ask leaves the work uncommitted
 - Substitute a smaller git action for the one asked — a local-only commit, a parked branch or an unasked push decided by the run itself
+- Call the run finished the moment the MR/PR exists: the request is **asked for its review**, read as its reviewer meets it, and every finding triaged against the code
+- Answer a review finding by rewriting pushed history (an amend or a force-push): after the push a finding is a **new commit** on the same branch, labelled with the id that owns it
 
 **Commit message**
 
@@ -345,6 +348,21 @@ Then:
 Per repository: branch, commit hash, pushed or not, and the MR/PR URL — or that the hand-off was skipped, with the paths left uncommitted. Always say the ask was put and what the answer was; “asked, not yet answered” is a complete report.
 
 Leaving a task branch checked out after this run is fine: the next run returns to `main` first (*Start from main*), so say which branch this run left each repository on.
+
+### After the MR/PR is open — the review the request draws (never skipped either)
+
+**The push is not the finish line; the review of what was pushed is.** The diff read in Phase D was read by the run that wrote it. This repository's history says that is not enough: a review on backend PR #10 returned **9 findings** and one on frontend PR #7 returned **4** — **13 of 13 real** — both after those diffs had already been read cold, checked and pushed. A pushed branch is a public artifact, and what its review finds is still this run's job.
+
+Once the MR/PR is open:
+
+* **Ask the remote for its own review, and say in the report that it was asked for.** On GitHub the Copilot reviewer **cannot** be requested with the API token this run holds — `POST …/requested_reviewers` answers `422 Reviews may only be requested from collaborators` — so the ask is either the repository's own automatic review or a click in the request's *Reviewers* menu. Whichever it is, **say which** and say the ask was put; never pass over the step in silence, and never write off the read below because the automated reviewer did not appear.
+* **Read the request the way its reviewer meets it** — the whole `main...HEAD` diff *in the MR/PR*, not the local `git diff` that was already read. Same bytes, arranged as the reviewer sees them, which is how both review rounds above found what they found.
+* **Triage every finding against the code, not against the review's tone.** "Already handled" is an answer that has to be *shown*, with the line that handles it. A finding is never dismissed because the review was automated — on this codebase that reviewer has consistently been right.
+* **Fix it in the owning task's diff.** Before the push that means editing the diff and re-running the checks (*Phase D*). After it — and pushed history is never rewritten — it means **a new commit on the same branch**, labelled with the id that owns the finding, pushed on top. Never an amend, never a force-push, and never one anonymous "review fixes" commit that hides which task the finding came from.
+* **A finding outside the task's scope is a new task**, named in the report — the same rule as any other out-of-scope repair, and never a silent fix.
+* **Read the pipeline run on the pushed head.** Green on the remote is evidence the ledger can point at; red is the stop condition it is locally, and it is fixed before the run is called finished.
+* **Record it in the task's evidence**: what the review was, what it found, which id owns each finding, the follow-up commit hash, and what the checks said afterwards. A review that found nothing must say it was asked for and the list was walked.
+* **A finding does not reopen a `DONE` task.** The evidence line is amended under the id that owns the fix — that is where a later run reads it.
 
 ---
 
@@ -367,7 +385,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Add “helpful” layers, folders, frameworks, or config the task did not name
 - Duplicate an existing helper
 - **Commit or push a diff whose pipeline's own checks were not run locally, or that is red** — the remote is not where a failure should be discovered
-- **Skip the code review, or treat a review that found nothing as optional** — the diff is read cold and the list is walked before anything is staged
+- **Skip the code review, or treat a review that found nothing as optional** — the diff is read cold and the list is walked before anything is staged, and the open MR/PR is asked for its review afterwards
 - Fix a symptom in one caller and leave the others
 - Skip Phase A/B (ledger + already-implemented scan)
 - Skip tracing the real flow
@@ -391,4 +409,5 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 7. **The cold read of the diff**: what the code-review list turned up and what changed because of it — or that the list was walked and found nothing
 8. `tasks.md` updated for that id
 9. **The hand-off, always last**: the ask — commit, push and open the MR/PR — and the user's answer, with per repository the branch, commit hash, push state and MR/PR URL; or that the ask went unanswered, the paths are left uncommitted, and the ask is recorded as a `## Pending hand-off` in `tasks.md` for the next run to re-ask
-10. A closing line naming the **next** runnable id — reported, **not started**
+10. **The review of what was pushed** (when there is an MR/PR): that its review was asked for, what it found, which id owns each finding fixed, the follow-up commit on the branch, and what the checks said afterwards — or that it was asked for and found nothing
+11. A closing line naming the **next** runnable id — reported, **not started**

@@ -300,10 +300,27 @@ Before the hand-off:
 - Commit files a task did not change, or as another author
 - Treat silence as consent: an unanswered ask leaves the work uncommitted
 - Substitute a smaller git action for the one asked
+- Call the batch finished the moment its MR/PRs exist: each remote is **asked for its review**, each request is read as its reviewer meets it, and every finding is triaged against the code
+- Answer a review finding by rewriting pushed history (an amend or a force-push): after the push a finding is a **new commit** on the same branch, labelled with the id that owns it
 
 ### Report
 
 Per repository: branch, one line per task commit (id + hash), pushed or not, and the MR/PR URL — or that the hand-off was skipped, with the paths left uncommitted. Always say the ask was put and what the answer was; "asked, not yet answered" is a complete report. Say which branch each repository was left on: the next run returns to `main` first.
+
+### After the MR/PR is open — the review the request draws (never skipped either)
+
+**The push is not the finish line; the review of what was pushed is.** The batch-wide read (*Phase D*) is still the author reading its own work. This project's history says that is not enough: a review on backend PR #10 returned **9 findings** and one on frontend PR #7 returned **4** — **13 of 13 real** — both after those diffs had been read cold, checked and pushed. A pushed branch is a public artifact, and what its review finds is still this run's job.
+
+Once the batch's MR/PRs are open:
+
+* **Ask each remote for its own review, and say in the report that it was asked for.** On GitHub the Copilot reviewer **cannot** be requested with the API token this run holds — `POST …/requested_reviewers` answers `422 Reviews may only be requested from collaborators` — so the ask is either the repository's own automatic review or a click in each request's *Reviewers* menu. Whichever it is, **say which**; never pass over the step in silence, and never write off the reads below because the automated reviewer did not appear.
+* **Read each request the way its reviewer meets it** — `git diff main...HEAD` *in the MR/PR*, not the local diff already read, and **per repository**: a batch spans repositories, and its MR/PRs are read one at a time.
+* **Triage every finding against the code, not against the review's tone.** "Already handled" has to be *shown*, with the line that handles it. A finding is never dismissed because the review was automated — on this codebase that reviewer has consistently been right.
+* **Attribute each finding to the id that owns it, and fix it there.** Before the push that is the owning id's diff (*Phase D*, re-read and re-checked). After it — and pushed history is never rewritten — it is **a new commit on the same branch**, labelled with that id, pushed on top. Never an amend, never a force-push, and never one anonymous "review fixes" commit that hides which task the finding came from.
+* **A finding outside every selected id's scope is a new task**, named in the report — the same rule as any other out-of-scope repair, and never a silent fix.
+* **Read the pipeline run on the pushed head in every repository.** Green on the remote is evidence the ledger can point at; red is the stop condition it is locally.
+* **Record it**: in each owning id's evidence, what the review was, what it found, which id owns each finding, the follow-up commit hash, and what the checks said afterwards. A review that found nothing must say it was asked for and the list was walked.
+* **A finding does not reopen a `DONE` id.** The evidence line is amended under the id that owns the fix — that is where a later run reads it.
 
 ---
 
@@ -326,7 +343,7 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 - Start any work while the selection question is unanswered
 - Skip the per-task already-implemented proof, the ladder, the trace of the real flow, the one-runnable-check rule, or the repository routing — a batch is not a licence to move faster per task
 - **Commit or push a diff whose pipeline's own checks were not run locally, or that is red** — and never treat an earlier id's green run as covering a later id's diff
-- **Skip the code review** — neither an earlier id's cold read covering a later id's diff, nor the batch-wide read of `git diff main...HEAD` before the push, may be skipped, and a review that found nothing must say the list was walked
+- **Skip the code review** — neither an earlier id's cold read covering a later id's diff, nor the batch-wide read of `git diff main...HEAD` before the push, may be skipped, and a review that found nothing must say the list was walked — and the open MR/PRs are then **asked for their review**, per repository, with every finding triaged and attributed to the id that owns it
 - Run tasks in parallel, or fold two tasks into one diff or one commit
 - Continue past a stop condition, or substitute a different task for the one that stopped
 - Add "helpful" layers, folders, frameworks or config a task did not name
@@ -346,4 +363,5 @@ Valid statuses only: `TODO` | `DOING` | `DONE` | `BLOCKED` | `SKIPPED`
 5. **The cold read**: per id what the code-review list turned up and what changed because of it, plus what the batch-wide read of `git diff main...HEAD` turned up — or that both were walked and found nothing
 6. The batch summary table, plus any id that stopped early with the reason and what remains queued
 7. **The hand-off, always last**: the ask — commit, push and open the MR/PR for the batch — and the user's answer, with per repository the branch, one line per task commit, the push state and the MR/PR URL; or that the ask went unanswered, the paths are left uncommitted, and it is recorded as a `## Pending hand-off` naming the whole batch
-8. A closing line naming the **next** selectable id(s) — reported, **not started**
+8. **The review of what was pushed** (when the batch has MR/PRs): that each remote's review was asked for, what it found, which id owns each finding fixed, the follow-up commits on the branches, and what the checks said afterwards — or that it was asked for and found nothing
+9. A closing line naming the **next** selectable id(s) — reported, **not started**
