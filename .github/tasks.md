@@ -1479,10 +1479,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `pos_latency_budget` (< 2 s), `pos_mode` (`online`).
 - **Dependencies**: T-3.POS.05
 - **Acceptance Criteria**: Latency is measured on a realistic dataset for a complete sale (scan → price → tender → post → receipt); the measured distribution is reported (not a single hand-picked run) and compared to the < 2 s budget; the measurement is repeatable in CI or a scheduled run.
-- **Evidence**: The latency report with the measurement method, dataset size and the comparison against 2 s.
+- **Evidence**: **DONE** — the latency verification, in the **backend repository** (measurement only: no product code changed). The one check `tests/check_pos_latency.py`, run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_pos_latency.py`, exit 0):
+  - **a realistic dataset** — a forty-item catalogue with barcodes, 1,000 units of each received into the till, a customer with a tier and four pricing rules across the tier, quantity and item dimensions, so the engine has rules to order and the issue has stock to value rather than an empty database.
+  - **a complete sale, timed end to end** — scan (barcode → item → engine price → pack tax) → tender → complete (stock issue and balanced posting) → receipt, each sale committed on its own, which is what a till does.
+  - **the distribution, not one run** — pass 1 over 60 complete sales: min `51 ms`, median `54 ms`, **p95 `58 ms`**, max `76 ms`; pass 2 on the same database: min `51 ms`, median `55 ms`, p95 `58 ms`, max `61 ms`. Both are printed, and the two-pass shape is what makes a regression visible as a number.
+  - **compared with the budget on the tail** — §6 metric 6's < 2 s is asserted against the **95th percentile** of both passes (`58 ms` against `2,000 ms`), not against an average, because a single slow sale is what a customer experiences. `POS_LATENCY_BUDGET` overrides the budget and the sale count is fixed, so two runs are comparable.
+  - **repeatable in CI or a scheduled run** — it is a `tests/check_*.py`, so the backend's pipeline loop runs it on every change with no extra wiring; and the trades it made are still whole afterwards (the shift's Z-Report still ties and the day report agrees over the 120 sales).
+  **Not in scope, deliberately**: optimising anything. A failure here is a finding for the owner of whatever made the sale slow, and none was found. **Pipeline run locally for this id, after its last edit**: the check itself green, and the backend's loop over `tests/check_*.py` green (**65/65**) with `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: S
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Phase Exit Gate
 
