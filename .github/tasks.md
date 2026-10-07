@@ -1506,10 +1506,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
   - Credit limits are enforced on order commitments and exposure is itemised
   - The AR subledger equals the receivables control account
   - Every posting in the cycle is balanced — §6 metric 1
-- **Evidence**: The end-to-end run with document ids, the latency report, the AR reconciliation and the Z-Report.
+- **Evidence**: **DONE** — the exit verification, in the **backend repository**, as the one check `tests/check_phase3_exit.py`, run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_phase3_exit.py`, exit 0, printed result *"all assertions green — Phase 3's exit criteria hold"*). It walks the cycle through the services the phase built — it re-implements no step and re-keys no figure, and every document is reached from the one before it:
+  - **the criterion itself, order to cash with no manual re-keying** — opportunity `Acme roller blinds` → quotation `Q-EXIT` (10 units at `90.000000`, priced by the engine under the `GOLD` rule) → order `SO-EXIT` (credit-checked) → shipment `SH-EXIT` → invoice `AR-EXIT` → a `252.000000` receipt → dunning at level `FINAL` → gateway payment `PAY-EXIT` for the `756.000000` left. Each document is read back by its number, and the totals are asserted against each other rather than restated: the same figure the quotation charged is on the invoice and the ledger entry, and nothing in the run was typed twice.
+  - **credit limits enforced on the commitment, exposure itemised** — a second order against the same customer is refused by name at the live exposure of `756.000000` against a `10000.000000` ceiling, then confirmed once the ceiling is raised; the exposure it was judged against is itemised to its 4 contributing documents, from the one implementation (T-3.AR.06).
+  - **a POS sale end to end, shift and Z-Report included, postings balanced** — the till sold 20 sales on one shift and closed it: the Z-Report ties (`4032.000000` gross = `3600.000000` net + `432.000000` tax), the day report over the same shift agrees to the figure, and the shift's close reconciles against its own expected cash rather than a stored snapshot. The 46 journal entries the cycle wrote all balance with two lines or more, and the 23 stock movements are read from the stock ledger.
+  - **the latency report** — §6 metric 6 over the gate's own 20 complete sales: min `32 ms`, median `35 ms`, p95 `59 ms`, max `59 ms`, against the `2000 ms` budget. The full distribution (120 sales, two passes) is the one `tests/check_pos_latency.py` prints under T-3.POS.06.
+  - **the subledger equals the control account** — after the whole cycle the AR subledger equals the receivables control account to the last decimal (`756.000000`), and the aging report's own total is that same figure, computed from the open items rather than stored.
+  **Not in scope, deliberately**: fixing anything the gate finds (a failure here is a finding for the owner of the offending task, and there were none) and the two Phase 6 hardening reviews. **Pipeline run locally, after the batch's last edit**: the backend's loop over `tests/check_*.py` green (**65/65**) with `tests/check_ledger_integrity.py` green, and this check among them.
 - **Estimated Effort**: M
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ---
 
