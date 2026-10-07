@@ -1287,10 +1287,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `dunning_levels`, `dunning_channel`, `report_schedule` cadence for reminder runs.
 - **Dependencies**: T-3.AR.02, T-0.INT.01
 - **Acceptance Criteria**: Each overdue invoice lands in exactly one level per run according to its days past due; an escalated invoice does not also receive the earlier level's reminder; delivery attempts and failures are visible in the delivery log; a settled invoice receives no further reminders; running the dunning job twice for a period does not duplicate reminders.
-- **Evidence**: One invoice escalated through two levels and one settled mid-way, with the delivery log and the duplicate-run check.
+- **Evidence**: **DONE** — dunning, in the **backend repository**. New module `app/ar/dunning.py` (`DunningLevel`, `DunningReminder` — append-only under T-0.AUDIT.01, `checked_levels`, `define_level`, `levels`, `level_for`, `run_dunning`, `DunningRun`, `reminders_for`), the one check `tests/check_dunning.py` — run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_dunning.py`, exit 0), **one invoice escalated through two levels and one settled mid-way, with the delivery log and the duplicate-run check**:
+  - **exactly one level per run, chosen by the days past due** — a 10-day-late invoice landed in `SOFT` (email) and a 55-day-late one in `FINAL` (sms); a billed-but-not-yet-due invoice reached none and is reported as skipped rather than silently dropped. The schedule is refused unless it partitions the days it covers (a gap, an overlap, a level starting before day 0, two open ends, a closed last level, an empty schedule, an unknown channel).
+  - **an escalated invoice does not receive the earlier level's reminder** — 31 days later `AR-EARLY` escalated to `FINAL` and was sent that level **alone**; its history reads `['SOFT', 'FINAL']` with one reminder per level per period. The unique `uq_dunning_reminder_once_per_run` on (invoice, level, run) is what makes it hold however often the period is re-run, and the database refuses a hand-written duplicate.
+  - **delivery is T-0.INT.01's, and its failures are visible** — every reminder is sent through `send_outbound`, so the delivery log carries the attempts and the outcome: two `sent` rows for the first run, and a channel that refuses an address leaves `Refused: mailbox unavailable` as the log's `last_error` **and** the reason on the reminder. A customer with no address on the level's channel is recorded with that reason (`no email address on the customer's primary contact`) and no delivery, rather than silently not reminded.
+  - **a settled invoice receives no further reminders** — it is skipped (reported in `DunningRun.settled`) and has no reminder row at all, even though its due date is long past; and it is still skipped by the later run.
+  - **running the job twice for a period duplicates nothing** — the second run wrote no reminder at all and reported both open invoices as already reminded.
+  - **a reminder is history** — the row cannot be edited or removed (append-only); the outcome is known before it is written, so nothing here is ever updated.
+  **Not in scope, deliberately**: interest and penalty charging (the plan does not name it) and any scheduling of the run itself. **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**58/58**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.AR.05
 - **Title**: Payment gateway webhooks and settlement posting
