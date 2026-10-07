@@ -1459,10 +1459,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `company_id`, `report_schedule`.
 - **Dependencies**: T-3.POS.04
 - **Acceptance Criteria**: POS daily totals equal the corresponding GL revenue, tax and tender postings; POS stock movements reconcile to the stock ledger; a difference is reported per day and terminal rather than aggregated away; the reconciliation is re-runnable.
-- **Evidence**: A clean reconciliation for a traded day plus a reported injected difference.
+- **Evidence**: **DONE** — the POS to GL and stock reconciliation, in the **backend repository**. New module `app/pos/reconciliation.py` (`reconcile_gl`, `reconcile_stock`, `reconcile`, `per_terminal`), the API endpoint `GET {BASE}/pos/reconciliation?on=&terminal=`, the contract re-vendored, and the one check `tests/check_pos_reconciliation.py` — run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_pos_reconciliation.py`, exit 0), **a clean reconciliation for a traded day plus a reported injected difference**:
+  - **POS daily totals equal the corresponding GL postings** — the day's `448.000000` gross across three sales, with revenue and output tax credited and each tender's account debited, matches the sales' own `journal_line` rows to the last decimal; the POS side is the documents and the GL side is the postings, so a missing entry shows as a difference of the whole amount.
+  - **POS stock movements reconcile to the stock ledger** — every movement the day's sales carry, read from the ledger by source type and sale id, matches the quantities their lines say left the shelf, per item and variant.
+  - **a difference is reported per day and terminal, never aggregated away** — the same figures are stated per terminal, so a day that balances while one till is short cannot hide.
+  - **an injected difference is reported** — an extra `50.00` posting against a sale shows as `-50.000000` on revenue and `+50.000000` on the account it touched, a movement with no line to explain it shows on the stock side, and a tender booked to the wrong account shows on the account it should have reached.
+  - **a refund is not counted twice** — the refunded sale leaves the day's takings (its entry and its stock return are not among them), which is exactly what `void_sale`'s reversal is for.
+  - **the reconciliation is re-runnable** — the same call returns the same figures, because both sides are read from the rows each time.
+  **Not in scope, deliberately**: correcting anything it finds (that is a finding for whoever caused it) and the latency measurement (T-3.POS.06). **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**65/65**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.POS.06
 - **Title**: POS online transaction latency verification (< 2 s)
