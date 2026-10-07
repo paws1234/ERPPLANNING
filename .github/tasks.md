@@ -1437,10 +1437,19 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `report_schedule`, `company_id`, `payment_tender_types`.
 - **Dependencies**: T-3.POS.03
 - **Acceptance Criteria**: The Z-Report totals tie to the shift's constituent sales with no rounding gap; tax is broken out per the active pack; voids and refunds appear separately; the day report aggregates the shift reports exactly (equal to the sum, not approximately); the report is immutable once the shift is closed.
-- **Evidence**: A shift Z-Report reconciled to its sales and a day report equal to the sum of its shifts.
+- **Evidence**: **DONE** — the Z-Report, its voids and refunds, in the **backend repository** (the report view is in the **frontend repository**). New module `app/pos/reports.py` (`void_sale`, `shift_report`, `day_report`), `app/pos/sales.py` gaining the `void` state and its columns (when, by whom, why, and the reversing entry), `app/stock/gl_posting.py`'s `SOURCE_ACCOUNT_KEYS` given the `pos_sale_refund` source, the API endpoints `GET {BASE}/pos/z-reports/shift/{id}` and `GET {BASE}/pos/z-reports/day?on=`, the contract re-vendored, and the one check `tests/check_pos_zreport.py` — run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_pos_zreport.py`, exit 0), **a shift Z-Report reconciled to its sales and a day report equal to the sum of its shifts**:
+  - **the totals tie with no rounding gap** — `200.000000` net + `24.000000` tax = `224.000000` gross, and the tenders applied add up to exactly that; the report states the comparison (`ties`) rather than asserting it quietly.
+  - **tax is broken out per the active pack** — each line's tax is the shared selling rule's, and the report sums the lines rather than re-deriving a document figure.
+  - **voids and refunds appear separately** — an abandoned basket (nothing ever moved) and a refunded sale (money given back) are counted and valued as their own lines, each naming its sale, and neither is counted among the sales.
+  - **a refund reverses what the sale did** — the goods go back on the shelf at the value they left at (the schema's stock ledger shows the return at `40.000000`, the issue's own value) and a **reversing entry** is posted that is the sale's own mirrored, account by account; the ledger stays append-only.
+  - **a void needs a reason and an actor**, and a sale already void cannot be voided twice (it would put the goods back and reverse the revenue twice).
+  - **the day report equals the sum of the shift reports exactly** — computed from the same rows rather than by rounding each shift first — with the trade of a shiftless till in its own bucket, and **every sale of the day in exactly one bucket**: a sale made on a shift that opened the day before (a till left open past midnight) is counted on the day it was sold, in the bucket for the trade the day's shifts did not take, where bucketing by the shift's own opening day had left it in neither bucket — revenue in the ledger and in the shift's report, and in no day's figures at all. Movements follow the shift that owns them, so a movement outside every shift is reported here rather than counted by each shift of the day.
+  - **it is immutable once the shift is closed** — reprinting a closed shift's report reproduced every figure, because nothing is stored to drift and a closed shift takes no more sales.
+  - the report carries the drawer's own count, expected figure, variance and reason.
+  **Not in scope, deliberately**: interest or penalty charges, and a stored report snapshot — the figures are derived from documents that cannot change after the shift closes, which is what "immutable" means here. **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**65/65**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Full-stack Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.POS.05
 - **Title**: POS to GL and stock reconciliation
