@@ -1247,10 +1247,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `company_id`, `report_schedule`, aging buckets (not stated).
 - **Dependencies**: T-3.AR.01
 - **Acceptance Criteria**: Each aged amount traces to an open invoice; the total equals the receivables control account; partial receipts reduce the correct bucket; buckets are configurable and shown on the report.
-- **Evidence**: An aging report over a dataset with partial receipts, reconciled to the control account.
+- **Evidence**: **DONE** — aging the receivables, in the **backend repository**. New module `app/ar/aging.py` (`checked_buckets`, `Report` with `totals`, `totals_by_currency`, `compare_to_control`, `by_customer`, `by_currency`, `aging`, `aging_csv`) and the ledger reader it compares against `app/ar/reconciliation.py` (`control_balance` — the half T-3.AR.07's reconciliation itself lands on), the one check `tests/check_ar_aging.py` — run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_ar_aging.py`, exit 0), **an aging report over a dataset with partial receipts, reconciled to the control account**:
+  - **every aged amount traces to an open invoice** — six aged rows each carrying their invoice number, customer, invoice and due dates, days past due and bucket; the buckets are the report's own `DEFAULT_BUCKETS` (`current`, `1-30`, `31-60`, `61-90`, `90+`), stated on the report because the plan leaves them unstated.
+  - **partial receipts reduce the correct bucket** — a `50.00` receipt against a `168.000000` invoice leaves `118.000000` open in the **1-30** bucket and nothing else moves; a fully settled invoice drops out of the population entirely.
+  - **the total equals the receivables control account** — per currency, read from `journal_line` through the mapping key `receivables`, with the difference stated: PHP `1854.000000` against `1854.000000` and USD `112.000000` against `112.000000`, both zero; an injected `300.00` posted straight to the control account is reported as a difference of `-300.000000` rather than absorbed. The headline `totals` add the rows as they stand and are documented as meaningful only while the company invoices in one currency — `by_currency()` is what the comparison uses.
+  - **buckets are configuration and are carried on the report** — three custom bands age the same population to `{'not due': 672, 'due now': 510, 'late': 784}`, the same total, and every set that would lose or double-count an invoice is refused: a gap, an overlap, a set starting after day 0, two open ends, a closed last bucket, an empty set and a reversed span.
+  - **per customer and per currency** — the per-customer view (`ACME PHP 1574`, `BOREAL PHP 280`, `BOREAL USD 112`) adds back to the report total, and the export carries the buckets by name and the control comparison.
+  **Not in scope, deliberately**: the reconciliation's own verdict and explanation (T-3.AR.07 — this task adds only the control-balance reader it shows beside its total) and dunning (T-3.AR.04), which reads the same rows. **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**54/54**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: S
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.AR.03
 - **Title**: Recurring billing
