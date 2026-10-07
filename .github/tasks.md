@@ -1393,10 +1393,18 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `payment_tender_types`, `transaction_currency`.
 - **Dependencies**: T-3.POS.01
 - **Acceptance Criteria**: A sale settles only when the tendered total covers it; change is computed correctly and cannot go negative; a split payment records each tender separately with its own settlement path; drawer movements outside a sale are recorded with a reason and appear in the shift totals.
-- **Evidence**: One cash sale with change, one split cash/card sale, and one paid-out, all reflected in shift totals.
+- **Evidence**: **DONE** — tendering and the drawer, in the **backend repository** (the drawer's screen is in the **frontend repository**). New module `app/pos/drawer.py` (`DrawerMovement`, `record_movement`, `paid_in`, `paid_out`, `movements_for`, `movement_total`, `cash_sales_total`, `change_paid`, `tender_breakdown`, `drawer_state`), `app/pos/sales.py`'s tendering completed (`PosTender` gaining `tender_no` so a receipt lists its tenders in the order the till took them), the API endpoint `POST {BASE}/pos/drawer-movements` and the contract re-vendored, and the one check `tests/check_pos_tender.py` — run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_pos_tender.py`, exit 0), **one cash sale with change, one split cash/card sale, and one paid-out, all reflected in the shift's totals**:
+  - **a sale settles only when the tenders cover it** — an under-paid sale is refused with what it is owed, and a card tender that would over-pay is refused (`change comes out of the drawer`), because a card is read for the amount it is charged.
+  - **change is computed and cannot go negative** — the 120.00 cash sale took `112.000000` and gave `8.000000` back; `tendered` and `applied` are stored apart, with `applied <= tendered` in the schema, so a sale's change is non-negative by construction rather than by a check.
+  - **a split payment records each tender separately with its own settlement path** — cash `50.000000` to the drawer's account and the card `62.000000` to the bank's, each its own line in one balanced entry, with the card's authorisation on its own tender row.
+  - **drawer movements outside a sale are recorded with a reason and move the drawer** — a `200.00` paid-out (window cleaner) and a `500.00` paid-in (opening float) leave `drawer_state`'s expected cash at the figure the documents give, and both name who made them.
+  - **the refusals** — a movement with no reason, with no actor, or a non-positive amount is each refused: cash that left the drawer unexplained cannot be counted by anybody. An amount nobody can read (`zzz`, and a `NaN` or an `Infinity`) is refused **by name** from the service and as `422 drawer_error` over the API rather than raised further in as a `decimal.InvalidOperation` the boundary would answer 500 to; a figure the till mistyped is the till's mistake, not the platform's fault.
+  - **the movement knows its shift** — `pos_drawer_movement` carries `shift_id`, taken from the shift trading on that terminal when the cash moved, so T-3.POS.03's `shift_totals` reads a shift's movements as *its own* rather than every movement on that till that day.
+  - **the breakdown keeps the paths apart** — `tender_breakdown` states what each tender type took and covered, rather than one lumped number.
+  **Not in scope, deliberately**: shift open/close and the cash count (T-3.POS.03), which reads `drawer_state`; and any ledger posting for a movement (the money was already the company's — an expense has its own document). **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**65/65**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Full-stack Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.POS.03
 - **Title**: Retail shift management
