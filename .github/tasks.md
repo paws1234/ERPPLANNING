@@ -1351,10 +1351,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `company_id`, `base_currency`.
 - **Dependencies**: T-3.AR.01, T-3.AR.05
 - **Acceptance Criteria**: Subledger open balance equals the control account to currency precision; an injected mismatch is reported; gateway settlements and partial receipts are reflected correctly.
-- **Evidence**: A clean reconciliation plus a reported mismatch case.
+- **Evidence**: **DONE** — the receivables control check, in the **backend repository**. `app/ar/reconciliation.py` completed (`subledger_balance`, `currencies_in_use`, `reconcile`, `explain`, alongside T-3.AR.02's `control_balance`), the one check `tests/check_ar_reconciliation.py` — run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_ar_reconciliation.py`, exit 0), **a clean reconciliation plus a reported mismatch case**:
+  - **the subledger equals the control account to currency precision** — `1344.000000` against `1344.000000`, difference `0.000000`, per currency; the subledger side is each invoice's derived `open_amount` and the control side is the `journal_line` rows the postings wrote at the account the `receivables` mapping points at, so the two share nothing but the postings.
+  - **partial receipts are reflected correctly** — a `400.00` receipt moved both sides to `944.000000`, because the subledger side *is* the settlement that was appended rather than a figure kept beside it.
+  - **gateway settlements are too, fee and all** — a `150.00` settlement whose `7.50` fee was debited to the fee account left both sides at `794.000000`: the fee never touches receivables, so it cannot drag the comparison apart.
+  - **an injected mismatch is reported, never absorbed** — a `250.00` posting made straight to the control account (nothing behind it in the subledger) is reported as a difference of `-250.000000`, with both figures and the gap stated; nothing in the module corrects it.
+  - **per currency** — a USD invoice reconciles in USD (`560.000000` = `560.000000`) and leaves the PHP difference untouched; the currencies swept are those present in the subledger **or** the control account, so a control-only posting cannot hide by having no invoice.
+  - **a period reconciles as a period** — with `start`, **both** sides are that window's movements: invoices raised less settlements posted inside it (`subledger_movement`) against the account's own movement, so a window that does not open at the first posting is compared with the same measure on both sides instead of a position against a movement — which would have reported every correct period as a difference. The check asserts a window in which nothing moved balances at zero on both sides while the position to date is still outstanding, and that the injected `250.000000` is the difference reported against the window's own movement, the same figure the position-to-date comparison states.
+  **Not in scope, deliberately**: correcting anything it finds (that is a finding for whoever caused it) and dunning, which reads the same invoices. **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**58/58**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: S
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `POS` — Point of Sale (§2.5)
 
