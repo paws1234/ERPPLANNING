@@ -1266,10 +1266,18 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `recurring_billing_cycle`, `tax_pack`, `transaction_currency`.
 - **Dependencies**: T-3.AR.01
 - **Acceptance Criteria**: A template generates invoices exactly on its cadence with no duplicates if the job reruns; a paused template generates nothing; a generated invoice is indistinguishable from a manual one for aging and dunning purposes; the generation is idempotent and its failures are reported.
-- **Evidence**: A monthly template run twice for the same period producing one invoice, plus a paused template producing none.
+- **Evidence**: **DONE** — recurring billing, in the **backend repository**. New module `app/ar/recurring.py` (`RecurringTemplate`, `RecurringTemplateLine`, `RecurringInvoiceRun` — append-only under T-0.AUDIT.01, `period_start`, `period_key`, `create_template`, `pause_template`, `template_by_code`, `runs_for`, `periods_due`, `generate_due`, `Generation`), the one check `tests/check_recurring_billing.py` — run 2026-10-07 against a scratch PostgreSQL 16 (`DATABASE_URL=postgresql+psycopg://… python tests/check_recurring_billing.py`, exit 0), **a monthly template run twice for the same period producing one invoice, plus a paused template producing none**:
+  - **the cadence is the template's, not the job's** — period *n* starts one cadence after `starts_on` (`_add_months` clamps a 31st to the target month's last day rather than rolling over), so a late run cannot shift a period. The same start date gives monthly `2026-01…03`, quarterly `2026-01, 2026-04, 2026-07` and weekly `2026-W37…W40`, each keyed as its own cadence names it.
+  - **no duplicates when the job reruns** — a second run over the same period raised nothing at all; the run row (`uq_recurring_run_period_once`) is the idempotency, and the invoice number carries the period (`HOSTING-2026-01`), so even a lost run row collides with T-3.AR.01's number rule. Each period's invoice and its run row are committed **together**, so a crash cannot leave an invoice nobody recorded.
+  - **a paused template generates nothing** — it comes back in `skipped` with the reason (`the schedule is paused`); resumed, it billed the six periods it had missed, in order, each dated its own period's start.
+  - **a generated invoice is indistinguishable from a manual one** — each is an ordinary posted `CustomerInvoice` with a balanced entry through the mapping, the customer's 30-day terms, and the aging report (T-3.AR.02) ages all twelve rows to a `0.000000` difference against the receivables control account.
+  - **failures are reported, and retried** — a template whose line names a buying-side classification (`VAT-IN-12`) is refused by `app.sales.tax` for each of its seven reached periods; every refusal is reported with its reason and its period, no run row is written for it, the next run retries all seven, and the billable template beside it was billed in the same run.
+  - **the run record is history** — the database refuses a hand-written second run row for a period and refuses to edit the one it holds.
+  - **the refusals at entry** — an unknown cadence, an empty template, a duplicate code, an end date before the start and a zero-quantity line are each refused by message.
+  **Not in scope, deliberately**: collecting the resulting invoices — they go through the normal AR path (T-3.AR.05's settlement and T-3.AR.04's dunning read them like any other invoice) — and any scheduling of the job itself, which is the runner's business, not this module's. **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**54/54**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-3.AR.04
 - **Title**: Dunning — reminder levels, escalation and delivery
