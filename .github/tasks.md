@@ -1717,10 +1717,18 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `mrp_bucket`, `mrp_demand_sources` (Sales Orders vs Stock), `scrap_percent`.
 - **Dependencies**: T-3.SALES.04, T-1.INV.04, T-4.BOM.01
 - **Acceptance Criteria**: Net requirement equals demand minus available stock and open supply at every BOM level, with scrap applied and lead times respected across buckets; a shortage at a sub-level propagates to the parent requirement; running MRP twice on unchanged data produces identical results (deterministic); the calculation states its inputs (horizon, bucket, demand sources) on every run.
-- **Evidence**: A hand-checkable dataset (two levels, one shortage) whose net requirement matches the manual calculation, plus a repeat run producing identical output.
+- **Evidence**:
+  - Implemented in `app/manufacturing/mrp.py` (`run_mrp`, `plan_of`, `plan_sorted`, `inputs_of`, `runs_of`; tables `mrp_run`, `mrp_requirement`), exercised by `tests/check_mrp.py` — a two-level dataset (WIDGET made from 2 BLANK each, BLANK bought with a 3-day lead time; 5 blanks on the shelf; SO-1 for 10 widgets; WO-1 open for 4 widgets, wanted in the first bucket).
+  - **net requirement, hand-checked bucket by bucket** — WIDGET bucket 1: gross `10.000000`, supply `4.000000` (the open job), net `6.000000`; BLANK bucket 1: gross `12.000000` (6 × 2), available `5.000000`, net `7.000000`. Both rows carry their level (`0`, `1`) and kind (`make`, `buy`); the plan holds exactly those two rows.
+  - **a sub-level shortage reaches the parent** — the WIDGET row is `constrained` with `constrained_by="BLANK"`: the parent that cannot be built says so on its own line rather than leaving it to be inferred from the level below.
+  - **lead times respected** — the BLANK is wanted in the week of `2026-10-05` and its requirement states `release_on = 2026-10-02`, i.e. the 3-day lead time applied to the bucket (`lead_time_days = 3`); the made item's release date is its own bucket.
+  - **the run states its inputs** — `inputs_of(run)` = `{start: 2026-10-05, horizon_days: 28, bucket_days: 7, demand_sources: ('sales_orders',), run_on: 2026-10-05}`, and the second feed (`work_orders`) really is demand: the open job owes `8.000000` blanks, `5.000000` on the shelf, net `3.000000`, with no WIDGET row; a feed this system does not have (`forecasts`) is refused (`UnknownDemandSource`).
+  - **deterministic** — a second run over unchanged data produced the identical plan (`plan_sorted` equal row for row, 2 rows), as a distinct `MrpRun`.
+  - **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**75/75**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (no HTTP surface added).
+  - **Corrected by the Phase 4 gate (T-4.X.GATE, same run)**: the `work_orders` demand feed (`_work_order_demand`) now reads each open job's **direct** components (`direct_requirements`, T-4.WO.01) instead of every row of its explosion: a released job draws what its own item is made of, and counting the deeper rows as well would demand the same material twice — the frame job's 55 tubes *and* the bicycle job's 55 again. The feed's own section-4 figures are one level deep and unchanged in this check. **Pipeline run locally after that correction**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer (with Domain Analyst — Manufacturing)
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.MRP.02
 - **Title**: MRP output to planned orders and purchase requisitions
