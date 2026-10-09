@@ -1329,9 +1329,9 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `credit_limit`, `credit_check_mode`, `transaction_currency`.
 - **Dependencies**: T-3.SALES.01, T-3.AR.01
 - **Acceptance Criteria**: Exposure includes open invoices, all unbilled order quantities (including shipped quantities not yet invoiced) and on-account receipts correctly, and the components are itemised; the same exposure figure is used by the order-time check (one implementation); an increase in exposure from a new invoice is immediately visible to the next order check; a limit change is audited.
-- **Evidence**: **INCOMPLETE** — the backend implementation and the check `tests/check_credit_exposure.py` were recorded as complete, but review found that they do not establish exposure during the ship-before-invoice interval:
+- **Evidence**: **DONE** — the backend implementation and the check `tests/check_credit_exposure.py` (eleven sections), in the **backend repository**. The review that reopened this id found that the recorded check did not establish exposure during the ship-before-invoice interval; the interval is now proved end to end, including its extreme and the control it exists for:
   - **the components are itemised** — invoiced `560.000000`, received `60.000000`, unbilled orders `1000.000000` and on-account receipts `50.000000` → `1450.000000`, with `open_invoices` derived (invoiced less received) and the document-level backing available through `open_items` (`AR-1 500.000000`, `AR-3 112.000000`).
-  - **review finding — shipped, uninvoiced quantities are omitted** — shipping increments `shipped_quantity` before AR.01 creates the invoice, so a fully shipped order temporarily contributes neither open-invoice nor unbilled exposure. The recorded check does not prove the exposure or order-limit decision in that interval. Preserve the commitment until its corresponding quantity/value is invoiced; add a regression that checks exposure after shipment but before invoice creation, then verifies invoicing transfers the amount without double-counting it.
+  - **review finding, resolved — shipped, uninvoiced quantities are preserved** — the order is measured as its lines less what has been **invoiced** for it (`_billed_net`), never less what has *shipped*, so the commitment survives the gap between T-3.SALES.05 raising `shipped_quantity` and T-3.AR.01 raising the invoice. The regression the finding asked for is section 11: **SO-5 ships all ten units with nothing invoiced** and the exposure still states `1000.000000`, the order-time check then refuses the next order on `1100.000000` over the `1000` limit (the figure that dropping the shipped goods would give is `100`), and invoicing moves `1000.000000` out of `unbilled` and `1120.000000` into `invoiced` **once, not twice** — the total is the invoice's gross, not the order *and* the invoice. Section 10 proves the partial case (four of ten shipped left the `1700.000000` unbilled where it was). Proved red on the old arithmetic: the whole-shipment assert fails with `unbilled_orders: 0.000000`, so the check exercises the repair rather than agreeing with it.
   - **one implementation** — confirming an order with nothing stated is judged against the statement's own `1450.000000`: the refusal reads *"would take the customer to 1550.000000, over the agreed limit 1000.000000"* (the order's own 100.00, untaxed, as `order_total` defines it). `confirm_order` no longer requires a caller-stated number, and a number that *is* stated is still validated and recorded verbatim (`700.000000`).
   - **an increase is immediately visible** — a new invoice took the exposure to `1562.000000` and the very next order check blocked on `1662.000000`, with nothing recomputed by hand.
   - **on-account receipts reduce it, and a credit is never a negative exposure** — money received with no invoice to apply it to (T-3.AR.05's parked payment, attributed to the customer the event names) is subtracted; a `2000.00` receipt took the total to `0.000000` with `438.000000` held as a named credit, which is `CreditDecision`'s own non-negative rule respected rather than broken.
@@ -1339,10 +1339,10 @@ A `/do-task` run must land its diff in the repository named in the map above —
   - **a limit change is audited** — `set_credit_limit` writes the `customer` row and T-0.AUDIT.02's trail records it: the new trail row names the before (`1000.0`) and the after (`2500.0`). No new mechanism was needed; the check asserts the existing one.
   - **beside the limit** — `exposure_against_limit` states the figure, the limit, the headroom and whether it is breached, and a customer with **no limit agreed** reads `null` rather than a zero ceiling.
   - **per currency** — a USD invoice is reported in `other_currencies` and never added into the PHP figure; asked for in USD, the same function states that currency's total with PHP beside it.
-  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**56/56**) and `tests/check_ledger_integrity.py` green; the frontend's `npm run check` green on all seven after the contract was re-published and re-vendored.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**65/65**) and `tests/check_ledger_integrity.py` green (its own two injections reported red first). This id touches no contract and no frontend file, so the frontend pipeline has nothing of its to check.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: IN PROGRESS
+- **Status**: DONE
 
 #### Task ID: T-3.AR.07
 - **Title**: AR to GL reconciliation and receivables control check
@@ -1440,21 +1440,21 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `report_schedule`, `company_id`, `payment_tender_types`.
 - **Dependencies**: T-3.POS.03
 - **Acceptance Criteria**: The Z-Report totals tie to the shift's constituent sales with no rounding gap; tax is broken out per the active pack; voids and refunds appear separately; the day report aggregates the shift reports exactly (equal to the sum, not approximately) under a defined cross-midnight ownership rule; the report is immutable once the shift is closed, including after a refund of one of its sales.
-- **Evidence**: **INCOMPLETE** — the backend implementation and the check `tests/check_pos_zreport.py` were recorded as complete, but review found that the report immutability and day-to-shift reconciliation criteria are not established:
+- **Evidence**: **DONE** — the backend implementation and the check `tests/check_pos_zreport.py` (ten sections), in the **backend repository**. The review that reopened this id found the immutability and day-to-shift reconciliation criteria unproven; both are now established, each by the regression the finding asked for:
   - **the totals tie with no rounding gap** — `200.000000` net + `24.000000` tax = `224.000000` gross, and the tenders applied add up to exactly that; the report states the comparison (`ties`) rather than asserting it quietly.
   - **tax is broken out per the active pack** — each line's tax is the shared selling rule's, and the report sums the lines rather than re-deriving a document figure.
   - **voids and refunds appear separately** — an abandoned basket (nothing ever moved) and a refunded sale (money given back) are counted and valued as their own lines, each naming its sale, and neither is counted among the sales.
   - **a refund reverses what the sale did** — the goods go back on the shelf at the value they left at (the schema's stock ledger shows the return at `40.000000`, the issue's own value) and a **reversing entry** is posted that is the sale's own mirrored, account by account; the ledger stays append-only.
   - **a void needs a reason and an actor**, and a sale already void cannot be voided twice (it would put the goods back and reverse the revenue twice).
-  - **a refund is dated when it happens, and the day it happens is the day that absorbs it** — `void_sale` takes the refund's own date (today by default) and posts the reversal there. The check confirms the refund is attributed to its posting day, but does not establish that the closed shift's report remains unchanged after refund; see the review finding below.
-  - **the money coming back out is counted on the day it went out** — `refunds_on` reads refunds by the reversal entry's posting date, so the refund appears in its own day's report and, when it was cash, in the drawer expectation of the shift that handed it back (`refund_cash`): the check refunds `POS-K1` two days after the sale and that day states the `112.000000` given back with its drawer expecting `88.000000`. A card refund moves no cash and changes no drawer; the check does not cover the effect of a post-close refund on the original shift report.
-  - **review finding — day totals are not proven to equal shift reports** — `day_report` selects shifts by `opened_on` and recomputes buckets from sales by `sold_on`; an overnight sale belongs to its shift report but is moved to the shiftless bucket in the day report. The current check sums the day report's own buckets, not the actual `shift_report()` results. Define cross-midnight shift ownership and aggregate the corresponding shift reports exactly; add a regression comparing the day report with those reports.
-  - **review finding — a post-close refund changes the closed shift report** — `void_sale` can refund a completed sale regardless of its shift; changing that sale to `void` removes it from `shift_sales`. Reject post-close mutations or persist an immutable close snapshot, and add a regression that reprints the report after a post-close refund and confirms it is unchanged.
+  - **a refund is dated when it happens, and the day it happens is the day that absorbs it** — `void_sale` takes the refund's own date (today by default) and posts the reversal there, and the closed shift's report is unchanged by it (section 10, above).
+  - **the money coming back out is counted on the day it went out** — `refunds_on` reads refunds by the reversal entry's posting date, so the refund appears in its own day's report and, when it was cash, in the drawer expectation of the shift that handed it back (`refund_cash`): the check refunds `POS-K1` two days after the sale and that day states the `112.000000` given back with its drawer expecting `88.000000`. A card refund moves no cash and changes no drawer; section 10 covers the effect of a post-close refund on the original shift report.
+  - **review finding, resolved — the day report *is* the sum of the shift reports** — `day_report` no longer recomputes a shift's buckets. It now takes the day's shifts — the ones that **opened** that day or **traded** on it (sold, moved cash) — and builds each line from `shift_report(shift, on=day)` itself, the shift's own report restricted to that day, so the equality is arithmetic over one function instead of two implementations kept agreeing by hand. The cross-midnight rule is stated in the docstring: a till left trading past midnight is reported on the day it traded, in its own shift's line, and its slices add back to its whole report (the opening float rides on the day the shift opened, so it is stated once). The regression is section 6 — every day line compared field by field against the actual `shift_report()` of the shift it belongs to — and section 9: the till left trading past midnight reads `112.000000` on the next day **in T3's own line**, with `0.000000` in the shiftless bucket it used to be moved into, `shift_report(T3, on=day) + shift_report(T3, on=tomorrow) == shift_report(T3)`, and the earlier day's report unchanged. Proved red on the old rule: the same check reported `next_day["shifts"] == []` and `shiftless["sales"] == 1`, which is exactly the bucket the finding objected to.
+  - **review finding, resolved — a post-close refund leaves the closed shift's report alone** — `shift_sales` reads a shift's sales by **the entry they posted**, not by `status`, so a sale refunded after the close is still a sale the shift took: the money went through that till and was counted in it, and refunding it is a document of its own on its own day. The regression is section 10: the original shift's report is captured after its close, `POS-K1` is refunded **two days later** through a different shift, and `shift_report(shift)` is asserted byte for byte what it signed off — while the refunding day states the `112.000000` that went back and its own shift's drawer expects `88.000000` (the `200.00` float less the cash handed over). Proved red by making `shift_sales` skip a refunded sale (`status != 'void'`) — the mutation the finding describes: the shift's own net falls from `300.000000` to `200.000000` and the check fails, so the report is exercised rather than merely described.
   - the report carries the drawer's own count, expected figure, variance and reason.
-  **Not in scope, deliberately**: interest or penalty charges. A stored report snapshot remains one possible way to address the review finding on post-close refunds. **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**65/65**) and `tests/check_ledger_integrity.py` green.
+  **Not in scope, deliberately**: interest or penalty charges. **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**65/65**), including the five other POS checks it could have moved (`check_pos_shifts`, `check_pos_sale`, `check_pos_tender`, `check_pos_reconciliation`, `check_pos_latency`) and `check_phase3_exit`, and `tests/check_ledger_integrity.py` green (its own two injections reported red first). The published contract is unchanged — the report's payload is a free-form object and only keys inside it were added — so the frontend has nothing of this id's to check.
 - **Estimated Effort**: M
 - **Owner Role**: Full-stack Engineer
-- **Status**: IN PROGRESS
+- **Status**: DONE
 
 #### Task ID: T-3.POS.05
 - **Title**: POS to GL and stock reconciliation
@@ -1537,10 +1537,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `scrap_percent`, `uom_conversion_factor`, `company_id`.
 - **Dependencies**: T-1.INV.01, T-0.AUDIT.02
 - **Acceptance Criteria**: A three-level BOM explodes to the correct total component quantities including scrap at each level; a circular BOM is rejected; a component cannot be its own ancestor; scrap of zero means no uplift and is distinguishable from "unset"; a BOM in use by a work order cannot be silently changed (a new version is required).
-- **Evidence**: A three-level explosion with per-level scrap, plus a circular-BOM rejection.
+- **Evidence**: **DONE** — the multi-level BOM, its scrap and its explosion, in the **backend repository**. New module `app/manufacturing/bom.py` (`Bom`, `BomLine`, `create_bom`, `add_line`, `release`, `revise`, `explode`, `lines_of`), the one check `tests/check_bom.py` (five sections):
+  - **a three-level BOM explodes to the right quantities with scrap at every level** — the check's tree is four levels deep and hand-checkable: 10 bicycles take `10.500000` frames (1 each, 5 % scrapped), `20.000000` wheels (2 each, nothing uplifted), `31.500000` tubes (3 per *scrapped* frame), `22.000000` tyres (10 % of their own), `100.000000` spokes and `63.000000` billets (2 per tube). The frame's 5 % is what the tube's requirement is computed on, so scrap **multiplies through** the levels rather than being added at the end.
+  - **a circular BOM is rejected, and a component cannot be its own ancestor** — three refusals with the path named: the bicycle as its own component (*"cannot be a component of its own BOM"*), the frame added to the tube made from it, and the bicycle added two levels up (*"would close a loop: … is already made from …"*). `_refuse_cycle` walks the items reachable *down* from the component; the explosion's own `CircularBomError` is the backstop, not the detection.
+  - **scrap of zero is not "unset"** — the wheel's line states `0.0000` and the tube's states nothing; both take no uplift, the explosion reports `scrap_percent: Decimal('0.0000')` against `None`, and the wheel's requirement is `20.000000` (not 21).
+  - **a BOM in use cannot be silently changed** — editing the released wheel BOM is refused (`BomLockedError`); `revise` produces the next version as a **draft** carrying the same make-up, the released version still explodes to the same figures after the revision is edited, and the revision's own explosion moves (`22.000000` → `16.000000` tyres per 10 units once a half-tyre line is added).
+  - **the walk and the totals agree** — the level list summed per item equals `required` for all six components.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**66/66**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (this id adds no HTTP surface).
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer (with Domain Analyst — Manufacturing)
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.BOM.02
 - **Title**: Routing — operations and their sequence
@@ -1550,10 +1556,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `operation_sequence`, `uom_conversion_factor`.
 - **Dependencies**: T-4.BOM.01
 - **Acceptance Criteria**: Operations carry a unique sequence within the BOM; times are expressed per unit and per batch consistently and the basis is labelled; a component can be assigned to a specific operation or to the BOM generally, and both are reported; a routing cannot have a gap or duplicate sequence.
-- **Evidence**: A four-operation routing with one operation-specific component, validated and displayed in order.
+- **Evidence**: **DONE** — the routing and its sequencing, in the **backend repository**. New module `app/manufacturing/routing.py` (`RoutingOperation`, `add_operation`, `assign_component`, `operations`, `routing`, `operation_minutes`, `routing_minutes`, `unassigned`, `sequence_check`), the one check `tests/check_routing.py` (five sections):
+  - **a four-operation routing, validated and displayed in order** — Cut tube (CUT), Weld frame (WELD), Paint (PAINT), Assemble (unassigned), sequences `[1, 2, 3, 4]`; the paint kit is assigned to step 3 and shown under it, while the frame and the wheel are reported as the BOM's own components — **both groups**, so neither hides the other.
+  - **a sequence cannot repeat or leave a hole** — a second operation at sequence 2 is refused (`DuplicateOperationError`) and sequence 7 when 5 was expected is refused naming the expected number (`SequenceGapError`); appending gives `[1, 2, 3, 4, 5]`, which `sequence_check` reports as dense with no duplicate.
+  - **times state their basis, and both bases are accepted** — the report carries `setup_basis: per_batch` and `run_basis: per_unit`; Weld was timed *12 minutes for 4 units*, is stored as `3.000000` a unit, and `run_basis_minutes` still returns the stated `12.000000`. A batch of 10 is hand-checked: `15 + 2×10`, `20 + 3×10`, `30 + 5×10`, `10 + 8×10` and `0 + 1×10` sum to `265.000000` minutes — setup once each, the run per unit.
+  - **a released BOM's routing is frozen** — adding an operation and re-assigning a component are both refused (`RoutingLockedError`), so the route changes by revising the BOM, exactly as its lines do.
+  - **an unassigned operation is reported** — Assemble names no work centre and `unassigned` returns it, rather than capacity planning loading it onto nobody.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**67/67**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `WC` — Work Centers & Capacity (§2.4)
 
@@ -1565,10 +1577,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `work_center_capacity`, `work_center_hourly_rate`, `downtime_percent`.
 - **Dependencies**: T-4.BOM.02
 - **Acceptance Criteria**: Capacity is expressed per period and the period is stated; downtime reduces the effective capacity used downstream; hourly rate changes are dated so historical costing is not restated; a capacity or rate of zero is rejected or explicitly flagged as invalid.
-- **Evidence**: Two work centers with different capacities/rates and a dated rate change that does not alter a past job's cost.
+- **Evidence**: **DONE** — work centre master data, in the **backend repository**. New module `app/manufacturing/work_centers.py` (`WorkCenter`, `WorkCenterRate`, `create_work_center`, `set_rate`, `rate_on`, `rate_history`, `effective_capacity_minutes`, `capacity_of`, `work_center_by_code`), the one check `tests/check_work_centers.py` (five sections):
+  - **two centres with different capacities, each stating its own period** — CUT is `480.000000` minutes **per day**, WELD is `2400.000000` **per week**, and `capacity_of` reports the figure with the unit so neither is read as the other.
+  - **downtime reduces the capacity downstream loads** — CUT's 10 % allowance leaves `432.000000` minutes of its 480 (`effective_capacity_minutes`, what T-4.WC.02 loads and judges overload against), while WELD, which loses none, is unchanged.
+  - **a dated rate change that does not alter a past job's cost** — CUT rated `250.00` from 2026-01-01 and `310.00` from 2026-07-01; a two-hour job finished in March is worth `500.000000` **both before and after** the July rate landed, work after July prices at `310.000000`, and a second rate for a date already rated is refused (`RateAlreadyDatedError`) so the figure a past job was costed at stays on the record.
+  - **a zero is refused, and the refusal names the field** — capacity `0` (*"a centre nobody can load is a wrong figure, not a decision"*), an hourly rate of `0` (*"a rate nobody stated is not a rate of nothing"*), and a period nobody recognises (*"capacity is stated per one of day, week, month"*).
+  - **nothing stated is nothing to state** — an unrated centre reads `None` rather than a guessed rate, and the dated history lists both rates still on the record.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**68/68**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WC.02
 - **Title**: Basic capacity planning
@@ -1578,10 +1596,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `work_center_capacity`, `downtime_percent`.
 - **Dependencies**: T-4.WC.01
 - **Acceptance Criteria**: Load equals the sum of operation times of the work orders assigned to each work center, adjusted for downtime; overload is visible per period against stated capacity; an unassigned operation is reported rather than ignored; the calculation is reproducible from the work orders.
-- **Evidence**: A load chart for a horizon with one overloaded and one underloaded period, reconciled by hand to the source work orders.
+- **Evidence**: **DONE** — basic capacity planning, in the **backend repository**. New module `app/manufacturing/capacity.py` (`capacity_profile`, `period_capacity`, `load_for`), the one check `tests/check_capacity_planning.py` (five sections):
+  - **one overloaded period and one that is not, reconciled by hand to the source work orders** — CUT (480 minutes a day, 10 % downtime → 432) carries `630.000000` minutes on 2026-09-10 against 432, which is `(15 + 10×20) + (15 + 10×40)` for WO-A and WO-B exactly; 2026-09-11 carries `215.000000` for WO-C and is not overloaded. The report names both orders per cell and says each was dated by its `due_on`.
+  - **capacity is per period and prorated to the bucket** — WELD (1400 minutes a **week**, no downtime) contributes `200.000000` minutes to a one-day bucket, with the gross figure and the source period beside it rather than implied.
+  - **an unassigned operation and an unknown centre are reported, not dropped** — WO-D's step with no work centre (`15.000000` minutes) and its step naming `GHOST` are both listed with their minutes and their order, and the centres carry exactly `1130.000000` minutes, so nothing was loaded onto a bench that does not do it.
+  - **a completed order stops loading** — WO-A walked to `closed` and CUT on the 10th fell from `630.000000` to `415.000000`, no longer overloaded: the chart is work still to do.
+  - **reproducible** — the same horizon answered the same figures twice, and one cell is `load_for(..., 'CUT', 2026-09-11) == 215.000000` recomputed from the orders.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**70/70**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `WO` — Shop Floor Control (§2.4)
 
@@ -1593,10 +1617,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `scrap_percent`, `uom_conversion_factor`.
 - **Dependencies**: T-4.BOM.01, T-4.WC.01
 - **Acceptance Criteria**: Requirements equal the BOM explosion for the ordered quantity including scrap at every level; the work order records the exact BOM/routing version so later BOM edits do not change it; a work order without a routing can still be created only if the plan allows (not stated) — otherwise the absence is reported rather than assumed; status transitions are auditable.
-- **Evidence**: A work order with its requirement list reconciled to the BOM explosion, and a later BOM edit leaving it unchanged.
+- **Evidence**: **DONE** — work order creation and requirement expansion, in the **backend repository**. New module `app/manufacturing/work_orders.py` (`WorkOrder`, `WorkOrderRequirement`, `WorkOrderOperation`, `create_work_order`, `advance`, `reconcile_requirements`, `missing_route`, `bom_of`), the one check `tests/check_work_orders.py` (five sections):
+  - **the requirements are the BOM explosion, including scrap at every level** — WO-1 for 10 bicycles carries `10.500000` frames (1 each, 5 % scrapped), `20.000000` wheels, `31.500000` tubes and `63.000000` billets, each with its own level (1, 1, 2, 3) and path (`BICYCLE → FRAME → TUBE → ALLOY`), and `reconcile_requirements` reports `matched: True` because both sides are the same `explode` call over the pinned version.
+  - **the exact version is pinned, and a later BOM edit leaves it unchanged** — the item's BOM was revised to v2 and its wheel line changed from 2 to 3; WO-1 still names v1, still requires `20.000000` wheels, still reconciles, and still routes the two operations it was raised with (the route is copied onto the job, so a revision cannot reach it either).
+  - **the absence of a route is reported rather than assumed** — WO-2 was raised against a released BOM with no routing: it exists, `missing_route` answers `True` and its operation list is empty. An item with **no released BOM** is refused (`NoBomError`: *"nothing to expand"*), because inventing requirements would be worse than refusing.
+  - **status transitions are a transition, not an assignment** — the check walks `planned → released → in_progress`, refuses the move back to `planned` with the statuses that *do* follow, and refuses a status nobody defines.
+  - **every move is auditable** — the trail holds both moves for the row with the before and the after (`('planned', 'released')`, `('released', 'in_progress')`), written by the table's own trigger (T-0.AUDIT.02) rather than by this module.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**69/69**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
+  - **Corrected by the Phase 4 gate (T-4.X.GATE, same run)**: `app/manufacturing/work_orders.py` gained `direct_requirements` (the job's **own**, level-1 components) beside `requirements_of` (the whole explosion the order was raised from, which the criterion above is about). Building the gate's chain exposed that the requirement list alone cannot answer *what this job consumes*: with the explosion's rows treated as the draw, a bicycle job demanded the tubes its frames are made of *as well as* the frames, so the same 55 tubes would be consumed twice (once by the frame job, once by the bicycle job). The list is unchanged — `requirements_of` and `reconcile_requirements` are untouched, and so is this check's expectation of levels 1–3 — and the draw is now stated separately. **Pipeline run locally after that correction**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WO.02
 - **Title**: Job cards, time tracking and production output
@@ -1606,10 +1637,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `operation_sequence`, `work_center_hourly_rate`.
 - **Dependencies**: T-4.WO.01
 - **Acceptance Criteria**: Time is booked per operation and cannot exceed a configured limit without acknowledgement; produced and rejected quantities are recorded separately and reconcile to the work order quantity; total booked time equals the sum of job card entries; a job card cannot be edited after the operation is closed except by an audited correction.
-- **Evidence**: A work order with two operations and booked time, reconciled to the work order quantity and to the sum of entries.
+- **Evidence**: **DONE** — job card execution and time/output capture, in the **backend repository**. New module `app/manufacturing/job_cards.py` (`JobCard`, `JobCardEntry`, `open_card`, `book_time`, `correct_entry`, `close_card`, `booked_time`, `output_of`, `time_by_work_center`), the one check `tests/check_job_cards.py` (five sections):
+  - **total booked time is the sum of the entries**, per card and per order — three cards and five bookings: ana's card reads `15.000000` setup + `60.000000` run, ben's `45.000000`, and the order's `179.000000` minutes equal the sum over its cards.
+  - **produced and rejected are recorded apart and reconcile to the order** — `11.000000` produced, `1.000000` rejected, a net of `10.000000` against the `10` ordered, with the `0.000000` difference stated while the job is still running.
+  - **an overrun past the limit is refused unless somebody owns it** — the limit is the **operation's** planned minutes (`115.000000`) plus 10 %, so two cards on one step share one budget rather than each getting a fresh one; ten more minutes are refused (`OverrunNotAcknowledged`) and accepted once ben acknowledges, with `overrun_acknowledged_by` and `overrun_reason` kept on the entry.
+  - **a closed card takes no more time, and a correction is a new entry** — booking is refused after the close (`CardClosedError`), and `correct_entry` appends a row that names the entry it corrects with who and why, leaving the corrected booking's own minutes unchanged beside it.
+  - **the time is reported per work centre** — `{'CUT': 130.000000, 'WELD': 49.000000}`, the figure T-4.WO.05 prices at each centre's dated rate.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**71/71**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WO.03
 - **Title**: Material issue to work orders
@@ -1619,10 +1656,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `uom_conversion_factor`, `costing_method` (issued value), `warehouse_hierarchy_levels`.
 - **Dependencies**: T-4.WO.01, T-1.INV.05
 - **Acceptance Criteria**: Issued quantities are tracked against requirements with the remaining requirement visible; over-issue beyond requirement plus tolerance is refused or explicitly overridden and recorded; the issue creates stock ledger entries and a balanced WIP posting; issued value uses the item's configured costing method.
-- **Evidence**: A work order partially issued with remaining requirements shown, plus an over-issue rejection.
+- **Evidence**: **DONE** — issuing material to work orders and the WIP it books, in the **backend repository**. New module `app/manufacturing/issues.py` (`WorkOrderIssue`, `issue_material`, `outstanding`, `issued_quantity`, `issued_value`, `issue_lines`, `issued_to_wip`) plus one line in `app/stock/gl_posting.py` (`work_order_issue` → the `work_in_progress` key), the one check `tests/check_material_issue.py` (five sections):
+  - **issued quantities are tracked against the requirement** — after issuing `6.000000` of the `10` required, `outstanding` reads required `10.000000`, issued `6.000000`, remaining `4.000000`, and the figure is the sum of the issue rows rather than a balance kept beside them.
+  - **the issue writes a stock ledger row and a balanced WIP posting** — one movement (`-6.000000` at `-60.000000`, valued by the costing method at ten a unit) and one entry touching `{'1200': -60.000000, '1230': +60.000000}` with debits equal to credits; the bin falls from 30 to `24.000000`.
+  - **an over-issue beyond the requirement plus tolerance is refused, then overridden and recorded** — a fourth issue would have taken the job to `11.25` against a `10.5` ceiling (5 %), refused with `OverIssueError`, and accepted once maria owned it: `overridden`, `override_actor` and `override_reason` are all on the issue row.
+  - **what the job did not call for, and what the store does not hold** — issuing the produced item itself is refused (`NotRequiredError`: *"does not call for"*), and so are thirty blanks from a bin holding `18.750000` (`InsufficientStockError`), so the stock side is T-1.INV.05's real one.
+  - **the WIP the order carries is the sum of its issues** — `112.500000` over three issues (`60.000000`, `42.500000`, `10.000000`), the figure T-4.WO.04 clears.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**72/72**) and `tests/check_ledger_integrity.py` green. A first attempt ran concurrently with the next id's run against the same scratch database and deadlocked on it; the run was repeated sequentially (at that point `73/73`, including the next id's check) and is green.
+  - **Corrected by the Phase 4 gate (T-4.X.GATE, same run)**: `outstanding` (and therefore `consumption_report`) still lists **every** requirement with what was issued against this order, and its docstring now says why a row below level 1 usually shows nothing issued: that material is drawn by the component's own work order (`direct_requirements`). No figure in this check moved — its dataset is one level deep. **Pipeline run locally after that correction**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WO.04
 - **Title**: Finished goods receipt from a work order
@@ -1632,10 +1676,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `uom_conversion_factor`, `costing_method`, `warehouse_hierarchy_levels`.
 - **Dependencies**: T-4.WO.03
 - **Acceptance Criteria**: Receiving the full quantity consumes exactly the BOM requirement (within tolerance) and clears the work order's WIP to zero; partial receipts consume proportionally and leave the balance consistent; a receipt that would leave unreconciled WIP is reported rather than silently accepted; every movement appears in the stock ledger.
-- **Evidence**: One partial and one final receipt with WIP cleared to zero and the stock ledger shown.
+- **Evidence**: **DONE** — production receipts, the material they consume and the WIP they clear, in the **backend repository**. New module `app/manufacturing/receipts.py` (`WorkOrderReceipt`, `receive_finished_goods`, `consumption_report`, `receipt_lines`, `wip_balance`) plus one line in `app/stock/gl_posting.py` (`work_order_receipt` → `work_in_progress`), the one check `tests/check_finished_goods.py` (five sections):
+  - **a partial receipt consumes its share and takes its share out of WIP** — receiving 4 of 10 widgets drew `8.000000` of the `20.000000` blanks the job takes and `32.000000` of the `80.000000` issued for it, leaving a WIP balance of `48.000000` derived from the issues and the receipts.
+  - **the final receipt consumes exactly the BOM requirement and clears WIP to zero** — the last 6 units consumed the remaining `20.000000` blanks and took `168.000000`; WIP ends at `0.000000` with `10` widgets in stock, so nothing is left unreconciled.
+  - **the stock ledger and the ledger both show it, to the last decimal** — the movements name the receipts as their documents, inventory stands at `400.000000` (the blanks' 400 back as ten widgets) and the WIP account at `0.000000`, with both receipt entries balanced.
+  - **a receipt nobody has drawn for is refused, naming the shortfall** (`ConsumptionNotCovered`: *"BLANK 4.000000"*), as is one that would report more than the order was raised for (`OverReceiptError`), and one before the job is being worked (`WorkOrderNotRunning`).
+  - **the consumption report** a cost accountant reads before closing: received `10.000000` of `10.000000`, WIP `0.000000`, `within_tolerance: True`, `complete: True`, every requirement issued exactly.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**73/73**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
+  - **Corrected by the Phase 4 gate (T-4.X.GATE, same run)**: the receipt's consumption — both the backflush (`_consume_proportionally`) and the coverage check a receipt without one makes (`_require_covered`) — is judged on the job's **direct** components (`direct_requirements`, T-4.WO.01) rather than on every row of the explosion: a job consumes what its own item is made of, and the materials of a component that is itself built are that component's own job's to draw. Without this the gate's bicycle job could not have been received without consuming the frame job's tubes a second time. This check's dataset is one level deep, so its five sections are unchanged and still green. **Pipeline run locally after that correction**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WO.05
 - **Title**: Production costing and its GL posting
@@ -1645,10 +1696,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `work_center_hourly_rate`, `costing_method`, `scrap_percent`.
 - **Dependencies**: T-4.WO.04, T-4.WC.01, T-1.ACCT.03
 - **Acceptance Criteria**: Work order cost equals material issued value plus booked time at the recorded (dated) rates; scrap quantity is attributed to cost, not lost; the variance against expected is computed and posted, and the posting balances; recosting the same work order twice produces no duplicate posting; the finished goods value equals the work order cost.
-- **Evidence**: A completed work order costed by hand-checked arithmetic, with the variance posted and the finished goods value agreeing.
+- **Evidence**: **DONE** — production costing and its GL posting, in the **backend repository**. New module `app/manufacturing/costing.py` (`WorkOrderCost`, `cost_work_order`, `cost_breakdown`, `labour_breakdown`, `cost_summary`, `finished_goods_value`) plus the `labour_applied` / `production_variance` mapping keys, the one check `tests/check_production_costing.py` (five sections):
+  - **the cost is material plus booked time at the recorded (dated) rates** — material `200.000000` (20 blanks at ten a unit, scrap already inside the requirement) plus labour `807.500000`: `120.000000` minutes on CUT at the `250.000000` in force = `500.000000`, `45.000000` on WELD at `410.000000` = `307.500000`; the job's cost is `1007.500000` against a standard of `500.000000`.
+  - **the finished goods carry the job's own cost** — the receipts had capitalised the `200.000000` of material they took out of WIP, and the costing added the `807.500000` of labour they could not yet know, so the goods stand at `1007.500000` rather than a material-only figure.
+  - **the variance is computed and posted, and the posting balances** — one entry: inventory debited `807.500000`, `labour_applied` credited `300.000000` (the standard less the material the receipts carried — what the standard allowed the output), `production_variance` credited `507.500000` (the difference); debits equal credits, and inventory reads `1407.500000` by hand (600 of blanks, 200 issued, 200 of goods back, 807.50 of labour).
+  - **costing twice posts once** — a second call returns the recorded row (`1007.500000`) and the ledger still holds one entry for the order; `counted` reports one costing.
+  - **refusals** — a job whose output has not all been received is refused (`WorkOrderNotComplete`), and an item with **no standard cost** to be judged against is refused (`MissingStandardCostError`).
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**74/74**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer (with Domain Analyst — Manufacturing)
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `MRP` — Material Requirements Planning (§2.4)
 
@@ -1660,10 +1717,18 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `mrp_bucket`, `mrp_demand_sources` (Sales Orders vs Stock), `scrap_percent`.
 - **Dependencies**: T-3.SALES.04, T-1.INV.04, T-4.BOM.01
 - **Acceptance Criteria**: Net requirement equals demand minus available stock and open supply at every BOM level, with scrap applied and lead times respected across buckets; a shortage at a sub-level propagates to the parent requirement; running MRP twice on unchanged data produces identical results (deterministic); the calculation states its inputs (horizon, bucket, demand sources) on every run.
-- **Evidence**: A hand-checkable dataset (two levels, one shortage) whose net requirement matches the manual calculation, plus a repeat run producing identical output.
+- **Evidence**:
+  - Implemented in `app/manufacturing/mrp.py` (`run_mrp`, `plan_of`, `plan_sorted`, `inputs_of`, `runs_of`; tables `mrp_run`, `mrp_requirement`), exercised by `tests/check_mrp.py` — a two-level dataset (WIDGET made from 2 BLANK each, BLANK bought with a 3-day lead time; 5 blanks on the shelf; SO-1 for 10 widgets; WO-1 open for 4 widgets, wanted in the first bucket).
+  - **net requirement, hand-checked bucket by bucket** — WIDGET bucket 1: gross `10.000000`, supply `4.000000` (the open job), net `6.000000`; BLANK bucket 1: gross `12.000000` (6 × 2), available `5.000000`, net `7.000000`. Both rows carry their level (`0`, `1`) and kind (`make`, `buy`); the plan holds exactly those two rows.
+  - **a sub-level shortage reaches the parent** — the WIDGET row is `constrained` with `constrained_by="BLANK"`: the parent that cannot be built says so on its own line rather than leaving it to be inferred from the level below.
+  - **lead times respected** — the BLANK is wanted in the week of `2026-10-05` and its requirement states `release_on = 2026-10-02`, i.e. the 3-day lead time applied to the bucket (`lead_time_days = 3`); the made item's release date is its own bucket.
+  - **the run states its inputs** — `inputs_of(run)` = `{start: 2026-10-05, horizon_days: 28, bucket_days: 7, demand_sources: ('sales_orders',), run_on: 2026-10-05}`, and the second feed (`work_orders`) really is demand: the open job owes `8.000000` blanks, `5.000000` on the shelf, net `3.000000`, with no WIDGET row; a feed this system does not have (`forecasts`) is refused (`UnknownDemandSource`).
+  - **deterministic** — a second run over unchanged data produced the identical plan (`plan_sorted` equal row for row, 2 rows), as a distinct `MrpRun`.
+  - **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**75/75**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (no HTTP surface added).
+  - **Corrected by the Phase 4 gate (T-4.X.GATE, same run)**: the `work_orders` demand feed (`_work_order_demand`) now reads each open job's **direct** components (`direct_requirements`, T-4.WO.01) instead of every row of its explosion: a released job draws what its own item is made of, and counting the deeper rows as well would demand the same material twice — the frame job's 55 tubes *and* the bicycle job's 55 again. The feed's own section-4 figures are one level deep and unchanged in this check. **Pipeline run locally after that correction**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer (with Domain Analyst — Manufacturing)
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.MRP.02
 - **Title**: MRP output to planned orders and purchase requisitions
@@ -1673,10 +1738,18 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `mrp_bucket`, `approval_levels` (converted requisitions inherit approval).
 - **Dependencies**: T-4.MRP.01, T-2.PROC.02
 - **Acceptance Criteria**: Every net requirement produces exactly one suggestion with a quantity, date and type (produce or purchase), and the suggested quantity equals the net requirement; converting a suggestion creates the target document and marks the suggestion consumed so it cannot be converted twice; a stale suggestion (inputs changed since the run) is flagged before conversion.
-- **Evidence**: One MRP run converted into one work order and one purchase requisition, with a second conversion attempt refused.
+- **Evidence**:
+  - Implemented in `app/manufacturing/mrp_output.py` (`raise_suggestions`, `suggestions_of`, `open_suggestions`, `is_stale`, `latest_plan`, `convert_suggestion`, `conversion_of`, `summary`; table `mrp_suggestion`, one row per requirement, enforced by `uq_mrp_suggestion_requirement`), exercised by `tests/check_mrp_output.py` on the T-4.MRP.01 dataset plus one configured approval level for `purchase_requisition`.
+  - **one suggestion per net requirement, at that requirement's figure** — the plan's 2 requirement rows raised exactly 2 suggestions: `produce 6.000000` WIDGET and `purchase 7.000000` BLANK, needed by `2026-10-05` with the order to be placed `2026-10-02`; asking the run twice returned the same two rows (idempotent), and the list is in the plan's own canonical order (bucket, item, level) rather than by insertion id.
+  - **a suggestion the plan has moved past is refused** — 5 more blanks received, a second run states a net of `2.000000` for that bucket: the old suggestion reports `is_stale = True` (`latest_plan = 2.000000`) and `convert_suggestion` refuses (`StaleSuggestionError`) before any document is created; `allow_stale=True` without a reason is refused as well ("converting a stale suggestion anyway needs a reason").
+  - **converted with a reason, it becomes a requisition that earns its approval** — REQ-1 is raised for `7.000000` blanks needed by `2026-10-02`, `status = 'pending'` with an `approval_request_id` distinct from its own id, i.e. it goes onto the configured chain rather than being waved through; the suggestion is marked `converted` with its document.
+  - **a make suggestion becomes a work order, once** — WO-MRP-1 is created for `6.000000` widgets, `source = 'mrp'`, `due_on = 2026-10-05` (the bucket the plan named, not the day of conversion), with its component requirement expanded from the released BOM (`BLANK 12.000000`); converting the same suggestion again is refused (`AlreadyConvertedError`).
+  - **the run's own newest suggestion converts cleanly** — the second run's BLANK suggestion (`2.000000`, `is_stale = False` because it *is* the newest run) became REQ-2 at that figure, not at the `7.000000` the plan asked for before the stock arrived.
+  - **the summary states where everything ended up** — `summary(run)["suggestions"]` lists both first-run suggestions `converted`, in plan order, naming REQ-1 (`pending`, still flagged `stale=True` so the override stays visible) and WO-MRP-1 (`planned`, `source='mrp'`).
+  - **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**76/76**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (no HTTP surface added).
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.MRP.03
 - **Title**: MRP net requirement accuracy verification
@@ -1686,10 +1759,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `mrp_bucket`, `scrap_percent`.
 - **Dependencies**: T-4.MRP.01, T-4.MRP.02
 - **Acceptance Criteria**: Expected net requirements are calculated independently (by hand or a separate method) for a dataset that exercises multi-level BOMs, scrap, partial stock and open supply; the engine's output must match **exactly — 100 %, any difference is a defect** (target set 2026-09-17); the dataset and the full comparison are recorded.
-- **Evidence**: The comparison table (expected vs engine, per item per bucket) showing a 100 % match, and any difference raised as a defect rather than explained away.
+- **Evidence**:
+  - Verification in `tests/check_mrp_accuracy.py` — the expectations are typed in as figures derived by hand from the dataset (three levels: BICYCLE → FRAME → TUBE, WHEEL bought; 10 % scrap on the frame's tube line; 4 tubes and 6 wheels on the shelf before the horizon; open supply from **both** sources — an open work order for 2 bicycles due `2026-10-07` and an approved purchase order for 5 wheels required `2026-10-16`), never read back out of the engine.
+  - **the comparison is exact — 100.00 %**: **80 of 80** field comparisons (8 rows × 10 fields: gross, available, supply, net, kind, level, lead time, release date, constrained, constrained-by), zero differences. The full table is printed by the check, row by row, with the derivation of each figure beside it: `BICYCLE W1 gross 10 supply 2 net 8`; `FRAME W1 gross 8 net 8`; `TUBE W1 gross 44 available 4 net 40 release 2026-10-02`; `WHEEL W1 gross 16 available 6 net 10`, and the same four items in week 2 (`TUBE 44/0/22`, `WHEEL 8/0/5/3`).
+  - **the engine's own arithmetic reconciles row by row** — every net is `gross - available - supply`, every component's gross is the level above's net × BOM quantity × scrap up-lift (`8 × 5 × 1.10 = 44`, `4 × 5 × 1.10 = 22`), the 4 tubes on hand were spent once (week 1) and not again, and the purchase order's 5 wheels were claimed once — agreement is not two methods reproducing one bug.
+  - **the comparison is not vacuous** — one unit of difference on one row produces exactly one finding (`2026-10-05 BICYCLE net: expected 7.000000, engine 8.000000`), so the 100 % is the engine agreeing rather than nothing being compared.
+  - **Finding, recorded rather than explained away** — the plan reads stock as T-1.INV.03's ledger sum **as of the horizon's end**, so it is not dated inside the horizon: a receipt of 4 tubes dated `2026-10-20` (two buckets after they were wanted) moved week 1's `available` from 4 to 8 and its net from 40 to 36, and touched no other row. This is the module's documented reading of stock ("the ledger sum, no balance table"), measured here so the 100 % does not rest on an unstated assumption; dating stock inside the horizon would be a change to **T-4.MRP.01** (its own Scope line: corrections are new findings for the owning task), and is carried forward as a follow-up rather than made inside a verification.
+  - **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**77/77**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (no HTTP surface added).
 - **Estimated Effort**: M
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Phase Exit Gate
 
@@ -1707,10 +1786,20 @@ A `/do-task` run must land its diff in the repository named in the map above —
   - MRP net requirements match independently computed expectations **exactly** on a multi-level dataset (100 %, any difference a defect) — §6 metric 4
   - A basic capacity view shows overload/underload per period from real work orders
   - Every posting in the cycle is balanced — §6 metric 1
-- **Evidence**: The end-to-end production run with document ids, the cost reconciliation, the MRP accuracy comparison and the capacity view.
+- **Evidence**:
+  - Verification in `tests/check_phase4_exit.py`, walking the criterion — *ability to produce finished goods from raw materials with correct costing* — document by document through the services Phase 4 built (nothing re-implemented, no figure re-keyed): the plan produces the jobs, the jobs consume the planned materials, the goods carry what the jobs cost, and every posting balances. Its dataset is a two-level product (a bicycle takes a frame and two wheels; a frame takes five tubes with 10 % scrap) over two weekly buckets, with the assembly centre deliberately small so a capacity view has something to show.
+  - **the plan drives the jobs, hand-checked (§6 metric 4)** — MRP over two sales orders (10 bicycles ordered 10-05, 6 ordered 10-12) against 40 tubes and 5 wheels on hand produced **8 rows over 2 levels matching the hand calculation field for field: 80 of 80 comparisons, 100.00 %** (`BICYCLE 10/0/0/10`, `FRAME 8…`, `TUBE 55/40/15` with release `2026-10-02`, `WHEEL 20/5/15`, and the same four in week 2 with `TUBE 33` and `WHEEL 12`). Its suggestions became `WO-BIKE-1` and `WO-FRAME-1` (both sourced `mrp`) and requisition `REQ-TUBE` for 15 — each raising its own multi-level requirement list (`WO-BIKE-1` for 10 bicycles: `FRAME 10.000000`, `WHEEL 20.000000`, `TUBE 55.000000` from its pin) and drawing its own components (`FRAME 10`, `WHEEL 20`), while `WO-FRAME-1` needs `TUBE 55.000000` with the scrap already inside.
+  - **raw materials to finished goods, document by document** — the planned materials received (16 tubes, 15 wheels), 55 tubes issued to `WO-FRAME-1` **plus one scrapped tube**, 55 minutes booked on the cutting bench and the card closed, 10 frames received; then 10 frames and 20 wheels issued to `WO-BIKE-1`, both route steps carded and closed (Assemble, Inspect), 10 bicycles received — and **WIP cleared to `0.000000` on both jobs**. Every document names the one before it (the movement names the issue or the receipt; each card names its job; each receipt `completes`), and each job's tube draw is its own: the bicycle job's `TUBE 55.000000` row was drawn at `0.000000` because the frames' tubes are the frame job's to consume.
+  - **the cost equals material plus time at the dated rates, and is what the goods carry** — frame job `835.000000` = `560.000000` (56 tubes at ten, scrap inside) + `275.000000` (55 minutes at `300.00`); bicycle job `2060.000000` = `960.000000` (10 frames + 20 wheels) + `1100.000000` (`120.000000` minutes on ASM at `400.00` = `800.000000`, `30.000000` on QC at `600.00` = `300.000000`), against standards of `500.000000` and `2500.000000`; `finished_goods_value` equals the job's cost. The two costing entries post what the goods are worth: inventory reads `2335.000000` by hand (raw materials in, material through both jobs, `1375.000000` of labour), **WIP is `0.000000`**, and the variance accounts hold `+105.000000` (335 credited on the frame job, 440 debited on the bicycle job).
+  - **scrap is attributed to cost rather than lost** — the requirement said `55.000000` and the job consumed `56.000000`; the extra tube is on the record as an `OverIssue` override naming `ana` and the reason (*a tube buckled in the press when the blade slipped*), and the `560.000000` of material is `550` + that one at ten, carried by the goods.
+  - **the capacity view shows overload and underload per period from the real work orders** — over `2026-10-05…10-18` daily: **1 overloaded period**, ASM on `2026-10-05` carrying `140.000000` minutes against a `120.000000` minute day (utilisation `1.1667`), against `39` idle periods and CUT's `60.000000` and QC's `35.000000` inside their own days; every figure traceable to `WO-BIKE-1`/`WO-FRAME-1` and no other order.
+  - **every posting balances — §6 metric 1** — all **12** entries the cycle wrote, across `goods_receipt`, `work_order_issue`, `work_order_receipt` and `work_order_cost`, have at least two lines and equal debits and credits, and the company's whole ledger nets to zero (`5875.000000` either side).
+  - **Findings, measured and carried forward rather than explained away** — two ceilings the walk exposes, both asserted with their figures so a later change has to move them deliberately: (1) **a sub-assembly's labour is not rolled into the parent's unit cost** (T-4.WO.05): the frames leave stock at `56.000000` a unit because the item ledger's moving average carries their material only, so the inventory account holds `2335.000000` while the bicycle job's own cost is `2060.000000` — the difference being exactly the frame job's `275.000000` of labour, still in the account and attributed to no unit (rolling it up needs a stock revaluation); (2) **stock is not dated inside the MRP horizon** (T-4.MRP.01), measured and recorded on that task.
+  - **Corrected inside this gate, before it could pass** — the walk would not run coherently at first: a work order's requirement list is the whole explosion (T-4.WO.01's criterion), and treating those rows as *what the job consumes* made the same 55 tubes the frame job's draw **and** the bicycle job's, twice over. `app/manufacturing/work_orders.py` gained `direct_requirements` (the job's own, level-1 components, beside the explosion list), and the two places that consume — the receipt's backflush/coverage (T-4.WO.04) and MRP's open-job demand feed (T-4.MRP.01) — now use it; each of those three tasks carries the correction in its own evidence. The requirement list itself, `reconcile_requirements` and every existing check's expectation are unchanged, and the loop is green at **78/78**.
+  - **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (Phase 4 adds no HTTP surface, so the published contract and the frontend are untouched by this phase).
 - **Estimated Effort**: M
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ---
 
