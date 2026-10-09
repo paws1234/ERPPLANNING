@@ -1596,10 +1596,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `work_center_capacity`, `downtime_percent`.
 - **Dependencies**: T-4.WC.01
 - **Acceptance Criteria**: Load equals the sum of operation times of the work orders assigned to each work center, adjusted for downtime; overload is visible per period against stated capacity; an unassigned operation is reported rather than ignored; the calculation is reproducible from the work orders.
-- **Evidence**: A load chart for a horizon with one overloaded and one underloaded period, reconciled by hand to the source work orders.
+- **Evidence**: **DONE** — basic capacity planning, in the **backend repository**. New module `app/manufacturing/capacity.py` (`capacity_profile`, `period_capacity`, `load_for`), the one check `tests/check_capacity_planning.py` (five sections):
+  - **one overloaded period and one that is not, reconciled by hand to the source work orders** — CUT (480 minutes a day, 10 % downtime → 432) carries `630.000000` minutes on 2026-09-10 against 432, which is `(15 + 10×20) + (15 + 10×40)` for WO-A and WO-B exactly; 2026-09-11 carries `215.000000` for WO-C and is not overloaded. The report names both orders per cell and says each was dated by its `due_on`.
+  - **capacity is per period and prorated to the bucket** — WELD (1400 minutes a **week**, no downtime) contributes `200.000000` minutes to a one-day bucket, with the gross figure and the source period beside it rather than implied.
+  - **an unassigned operation and an unknown centre are reported, not dropped** — WO-D's step with no work centre (`15.000000` minutes) and its step naming `GHOST` are both listed with their minutes and their order, and the centres carry exactly `1130.000000` minutes, so nothing was loaded onto a bench that does not do it.
+  - **a completed order stops loading** — WO-A walked to `closed` and CUT on the 10th fell from `630.000000` to `415.000000`, no longer overloaded: the chart is work still to do.
+  - **reproducible** — the same horizon answered the same figures twice, and one cell is `load_for(..., 'CUT', 2026-09-11) == 215.000000` recomputed from the orders.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**70/70**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `WO` — Shop Floor Control (§2.4)
 
