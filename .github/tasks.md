@@ -1696,10 +1696,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `work_center_hourly_rate`, `costing_method`, `scrap_percent`.
 - **Dependencies**: T-4.WO.04, T-4.WC.01, T-1.ACCT.03
 - **Acceptance Criteria**: Work order cost equals material issued value plus booked time at the recorded (dated) rates; scrap quantity is attributed to cost, not lost; the variance against expected is computed and posted, and the posting balances; recosting the same work order twice produces no duplicate posting; the finished goods value equals the work order cost.
-- **Evidence**: A completed work order costed by hand-checked arithmetic, with the variance posted and the finished goods value agreeing.
+- **Evidence**: **DONE** — production costing and its GL posting, in the **backend repository**. New module `app/manufacturing/costing.py` (`WorkOrderCost`, `cost_work_order`, `cost_breakdown`, `labour_breakdown`, `cost_summary`, `finished_goods_value`) plus the `labour_applied` / `production_variance` mapping keys, the one check `tests/check_production_costing.py` (five sections):
+  - **the cost is material plus booked time at the recorded (dated) rates** — material `200.000000` (20 blanks at ten a unit, scrap already inside the requirement) plus labour `807.500000`: `120.000000` minutes on CUT at the `250.000000` in force = `500.000000`, `45.000000` on WELD at `410.000000` = `307.500000`; the job's cost is `1007.500000` against a standard of `500.000000`.
+  - **the finished goods carry the job's own cost** — the receipts had capitalised the `200.000000` of material they took out of WIP, and the costing added the `807.500000` of labour they could not yet know, so the goods stand at `1007.500000` rather than a material-only figure.
+  - **the variance is computed and posted, and the posting balances** — one entry: inventory debited `807.500000`, `labour_applied` credited `300.000000` (the standard less the material the receipts carried — what the standard allowed the output), `production_variance` credited `507.500000` (the difference); debits equal credits, and inventory reads `1407.500000` by hand (600 of blanks, 200 issued, 200 of goods back, 807.50 of labour).
+  - **costing twice posts once** — a second call returns the recorded row (`1007.500000`) and the ledger still holds one entry for the order; `counted` reports one costing.
+  - **refusals** — a job whose output has not all been received is refused (`WorkOrderNotComplete`), and an item with **no standard cost** to be judged against is refused (`MissingStandardCostError`).
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**74/74**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer (with Domain Analyst — Manufacturing)
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `MRP` — Material Requirements Planning (§2.4)
 
