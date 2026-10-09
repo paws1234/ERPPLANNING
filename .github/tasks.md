@@ -1637,10 +1637,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `operation_sequence`, `work_center_hourly_rate`.
 - **Dependencies**: T-4.WO.01
 - **Acceptance Criteria**: Time is booked per operation and cannot exceed a configured limit without acknowledgement; produced and rejected quantities are recorded separately and reconcile to the work order quantity; total booked time equals the sum of job card entries; a job card cannot be edited after the operation is closed except by an audited correction.
-- **Evidence**: A work order with two operations and booked time, reconciled to the work order quantity and to the sum of entries.
+- **Evidence**: **DONE** — job card execution and time/output capture, in the **backend repository**. New module `app/manufacturing/job_cards.py` (`JobCard`, `JobCardEntry`, `open_card`, `book_time`, `correct_entry`, `close_card`, `booked_time`, `output_of`, `time_by_work_center`), the one check `tests/check_job_cards.py` (five sections):
+  - **total booked time is the sum of the entries**, per card and per order — three cards and five bookings: ana's card reads `15.000000` setup + `60.000000` run, ben's `45.000000`, and the order's `179.000000` minutes equal the sum over its cards.
+  - **produced and rejected are recorded apart and reconcile to the order** — `11.000000` produced, `1.000000` rejected, a net of `10.000000` against the `10` ordered, with the `0.000000` difference stated while the job is still running.
+  - **an overrun past the limit is refused unless somebody owns it** — the limit is the **operation's** planned minutes (`115.000000`) plus 10 %, so two cards on one step share one budget rather than each getting a fresh one; ten more minutes are refused (`OverrunNotAcknowledged`) and accepted once ben acknowledges, with `overrun_acknowledged_by` and `overrun_reason` kept on the entry.
+  - **a closed card takes no more time, and a correction is a new entry** — booking is refused after the close (`CardClosedError`), and `correct_entry` appends a row that names the entry it corrects with who and why, leaving the corrected booking's own minutes unchanged beside it.
+  - **the time is reported per work centre** — `{'CUT': 130.000000, 'WELD': 49.000000}`, the figure T-4.WO.05 prices at each centre's dated rate.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**71/71**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WO.03
 - **Title**: Material issue to work orders
