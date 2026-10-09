@@ -1738,10 +1738,18 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `mrp_bucket`, `approval_levels` (converted requisitions inherit approval).
 - **Dependencies**: T-4.MRP.01, T-2.PROC.02
 - **Acceptance Criteria**: Every net requirement produces exactly one suggestion with a quantity, date and type (produce or purchase), and the suggested quantity equals the net requirement; converting a suggestion creates the target document and marks the suggestion consumed so it cannot be converted twice; a stale suggestion (inputs changed since the run) is flagged before conversion.
-- **Evidence**: One MRP run converted into one work order and one purchase requisition, with a second conversion attempt refused.
+- **Evidence**:
+  - Implemented in `app/manufacturing/mrp_output.py` (`raise_suggestions`, `suggestions_of`, `open_suggestions`, `is_stale`, `latest_plan`, `convert_suggestion`, `conversion_of`, `summary`; table `mrp_suggestion`, one row per requirement, enforced by `uq_mrp_suggestion_requirement`), exercised by `tests/check_mrp_output.py` on the T-4.MRP.01 dataset plus one configured approval level for `purchase_requisition`.
+  - **one suggestion per net requirement, at that requirement's figure** — the plan's 2 requirement rows raised exactly 2 suggestions: `produce 6.000000` WIDGET and `purchase 7.000000` BLANK, needed by `2026-10-05` with the order to be placed `2026-10-02`; asking the run twice returned the same two rows (idempotent), and the list is in the plan's own canonical order (bucket, item, level) rather than by insertion id.
+  - **a suggestion the plan has moved past is refused** — 5 more blanks received, a second run states a net of `2.000000` for that bucket: the old suggestion reports `is_stale = True` (`latest_plan = 2.000000`) and `convert_suggestion` refuses (`StaleSuggestionError`) before any document is created; `allow_stale=True` without a reason is refused as well ("converting a stale suggestion anyway needs a reason").
+  - **converted with a reason, it becomes a requisition that earns its approval** — REQ-1 is raised for `7.000000` blanks needed by `2026-10-02`, `status = 'pending'` with an `approval_request_id` distinct from its own id, i.e. it goes onto the configured chain rather than being waved through; the suggestion is marked `converted` with its document.
+  - **a make suggestion becomes a work order, once** — WO-MRP-1 is created for `6.000000` widgets, `source = 'mrp'`, `due_on = 2026-10-05` (the bucket the plan named, not the day of conversion), with its component requirement expanded from the released BOM (`BLANK 12.000000`); converting the same suggestion again is refused (`AlreadyConvertedError`).
+  - **the run's own newest suggestion converts cleanly** — the second run's BLANK suggestion (`2.000000`, `is_stale = False` because it *is* the newest run) became REQ-2 at that figure, not at the `7.000000` the plan asked for before the stock arrived.
+  - **the summary states where everything ended up** — `summary(run)["suggestions"]` lists both first-run suggestions `converted`, in plan order, naming REQ-1 (`pending`, still flagged `stale=True` so the override stays visible) and WO-MRP-1 (`planned`, `source='mrp'`).
+  - **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**76/76**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (no HTTP surface added).
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.MRP.03
 - **Title**: MRP net requirement accuracy verification
