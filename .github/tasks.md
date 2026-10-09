@@ -1676,10 +1676,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `uom_conversion_factor`, `costing_method`, `warehouse_hierarchy_levels`.
 - **Dependencies**: T-4.WO.03
 - **Acceptance Criteria**: Receiving the full quantity consumes exactly the BOM requirement (within tolerance) and clears the work order's WIP to zero; partial receipts consume proportionally and leave the balance consistent; a receipt that would leave unreconciled WIP is reported rather than silently accepted; every movement appears in the stock ledger.
-- **Evidence**: One partial and one final receipt with WIP cleared to zero and the stock ledger shown.
+- **Evidence**: **DONE** — production receipts, the material they consume and the WIP they clear, in the **backend repository**. New module `app/manufacturing/receipts.py` (`WorkOrderReceipt`, `receive_finished_goods`, `consumption_report`, `receipt_lines`, `wip_balance`) plus one line in `app/stock/gl_posting.py` (`work_order_receipt` → `work_in_progress`), the one check `tests/check_finished_goods.py` (five sections):
+  - **a partial receipt consumes its share and takes its share out of WIP** — receiving 4 of 10 widgets drew `8.000000` of the `20.000000` blanks the job takes and `32.000000` of the `80.000000` issued for it, leaving a WIP balance of `48.000000` derived from the issues and the receipts.
+  - **the final receipt consumes exactly the BOM requirement and clears WIP to zero** — the last 6 units consumed the remaining `20.000000` blanks and took `168.000000`; WIP ends at `0.000000` with `10` widgets in stock, so nothing is left unreconciled.
+  - **the stock ledger and the ledger both show it, to the last decimal** — the movements name the receipts as their documents, inventory stands at `400.000000` (the blanks' 400 back as ten widgets) and the WIP account at `0.000000`, with both receipt entries balanced.
+  - **a receipt nobody has drawn for is refused, naming the shortfall** (`ConsumptionNotCovered`: *"BLANK 4.000000"*), as is one that would report more than the order was raised for (`OverReceiptError`), and one before the job is being worked (`WorkOrderNotRunning`).
+  - **the consumption report** a cost accountant reads before closing: received `10.000000` of `10.000000`, WIP `0.000000`, `within_tolerance: True`, `complete: True`, every requirement issued exactly.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**73/73**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
+  - **Corrected by the Phase 4 gate (T-4.X.GATE, same run)**: the receipt's consumption — both the backflush (`_consume_proportionally`) and the coverage check a receipt without one makes (`_require_covered`) — is judged on the job's **direct** components (`direct_requirements`, T-4.WO.01) rather than on every row of the explosion: a job consumes what its own item is made of, and the materials of a component that is itself built are that component's own job's to draw. Without this the gate's bicycle job could not have been received without consuming the frame job's tubes a second time. This check's dataset is one level deep, so its five sections are unchanged and still green. **Pipeline run locally after that correction**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WO.05
 - **Title**: Production costing and its GL posting
