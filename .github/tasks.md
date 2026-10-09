@@ -1577,10 +1577,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `work_center_capacity`, `work_center_hourly_rate`, `downtime_percent`.
 - **Dependencies**: T-4.BOM.02
 - **Acceptance Criteria**: Capacity is expressed per period and the period is stated; downtime reduces the effective capacity used downstream; hourly rate changes are dated so historical costing is not restated; a capacity or rate of zero is rejected or explicitly flagged as invalid.
-- **Evidence**: Two work centers with different capacities/rates and a dated rate change that does not alter a past job's cost.
+- **Evidence**: **DONE** — work centre master data, in the **backend repository**. New module `app/manufacturing/work_centers.py` (`WorkCenter`, `WorkCenterRate`, `create_work_center`, `set_rate`, `rate_on`, `rate_history`, `effective_capacity_minutes`, `capacity_of`, `work_center_by_code`), the one check `tests/check_work_centers.py` (five sections):
+  - **two centres with different capacities, each stating its own period** — CUT is `480.000000` minutes **per day**, WELD is `2400.000000` **per week**, and `capacity_of` reports the figure with the unit so neither is read as the other.
+  - **downtime reduces the capacity downstream loads** — CUT's 10 % allowance leaves `432.000000` minutes of its 480 (`effective_capacity_minutes`, what T-4.WC.02 loads and judges overload against), while WELD, which loses none, is unchanged.
+  - **a dated rate change that does not alter a past job's cost** — CUT rated `250.00` from 2026-01-01 and `310.00` from 2026-07-01; a two-hour job finished in March is worth `500.000000` **both before and after** the July rate landed, work after July prices at `310.000000`, and a second rate for a date already rated is refused (`RateAlreadyDatedError`) so the figure a past job was costed at stays on the record.
+  - **a zero is refused, and the refusal names the field** — capacity `0` (*"a centre nobody can load is a wrong figure, not a decision"*), an hourly rate of `0` (*"a rate nobody stated is not a rate of nothing"*), and a period nobody recognises (*"capacity is stated per one of day, week, month"*).
+  - **nothing stated is nothing to state** — an unrated centre reads `None` rather than a guessed rate, and the dated history lists both rates still on the record.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**68/68**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WC.02
 - **Title**: Basic capacity planning
