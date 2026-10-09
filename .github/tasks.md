@@ -1656,10 +1656,17 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `uom_conversion_factor`, `costing_method` (issued value), `warehouse_hierarchy_levels`.
 - **Dependencies**: T-4.WO.01, T-1.INV.05
 - **Acceptance Criteria**: Issued quantities are tracked against requirements with the remaining requirement visible; over-issue beyond requirement plus tolerance is refused or explicitly overridden and recorded; the issue creates stock ledger entries and a balanced WIP posting; issued value uses the item's configured costing method.
-- **Evidence**: A work order partially issued with remaining requirements shown, plus an over-issue rejection.
+- **Evidence**: **DONE** — issuing material to work orders and the WIP it books, in the **backend repository**. New module `app/manufacturing/issues.py` (`WorkOrderIssue`, `issue_material`, `outstanding`, `issued_quantity`, `issued_value`, `issue_lines`, `issued_to_wip`) plus one line in `app/stock/gl_posting.py` (`work_order_issue` → the `work_in_progress` key), the one check `tests/check_material_issue.py` (five sections):
+  - **issued quantities are tracked against the requirement** — after issuing `6.000000` of the `10` required, `outstanding` reads required `10.000000`, issued `6.000000`, remaining `4.000000`, and the figure is the sum of the issue rows rather than a balance kept beside them.
+  - **the issue writes a stock ledger row and a balanced WIP posting** — one movement (`-6.000000` at `-60.000000`, valued by the costing method at ten a unit) and one entry touching `{'1200': -60.000000, '1230': +60.000000}` with debits equal to credits; the bin falls from 30 to `24.000000`.
+  - **an over-issue beyond the requirement plus tolerance is refused, then overridden and recorded** — a fourth issue would have taken the job to `11.25` against a `10.5` ceiling (5 %), refused with `OverIssueError`, and accepted once maria owned it: `overridden`, `override_actor` and `override_reason` are all on the issue row.
+  - **what the job did not call for, and what the store does not hold** — issuing the produced item itself is refused (`NotRequiredError`: *"does not call for"*), and so are thirty blanks from a bin holding `18.750000` (`InsufficientStockError`), so the stock side is T-1.INV.05's real one.
+  - **the WIP the order carries is the sum of its issues** — `112.500000` over three issues (`60.000000`, `42.500000`, `10.000000`), the figure T-4.WO.04 clears.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**72/72**) and `tests/check_ledger_integrity.py` green. A first attempt ran concurrently with the next id's run against the same scratch database and deadlocked on it; the run was repeated sequentially (at that point `73/73`, including the next id's check) and is green.
+  - **Corrected by the Phase 4 gate (T-4.X.GATE, same run)**: `outstanding` (and therefore `consumption_report`) still lists **every** requirement with what was issued against this order, and its docstring now says why a row below level 1 usually shows nothing issued: that material is drawn by the component's own work order (`direct_requirements`). No figure in this check moved — its dataset is one level deep. **Pipeline run locally after that correction**: the backend's loop over `tests/check_*.py` green (**78/78**) and `tests/check_ledger_integrity.py` green.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.WO.04
 - **Title**: Finished goods receipt from a work order
