@@ -1537,10 +1537,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `scrap_percent`, `uom_conversion_factor`, `company_id`.
 - **Dependencies**: T-1.INV.01, T-0.AUDIT.02
 - **Acceptance Criteria**: A three-level BOM explodes to the correct total component quantities including scrap at each level; a circular BOM is rejected; a component cannot be its own ancestor; scrap of zero means no uplift and is distinguishable from "unset"; a BOM in use by a work order cannot be silently changed (a new version is required).
-- **Evidence**: A three-level explosion with per-level scrap, plus a circular-BOM rejection.
+- **Evidence**: **DONE** — the multi-level BOM, its scrap and its explosion, in the **backend repository**. New module `app/manufacturing/bom.py` (`Bom`, `BomLine`, `create_bom`, `add_line`, `release`, `revise`, `explode`, `lines_of`), the one check `tests/check_bom.py` (five sections):
+  - **a three-level BOM explodes to the right quantities with scrap at every level** — the check's tree is four levels deep and hand-checkable: 10 bicycles take `10.500000` frames (1 each, 5 % scrapped), `20.000000` wheels (2 each, nothing uplifted), `31.500000` tubes (3 per *scrapped* frame), `22.000000` tyres (10 % of their own), `100.000000` spokes and `63.000000` billets (2 per tube). The frame's 5 % is what the tube's requirement is computed on, so scrap **multiplies through** the levels rather than being added at the end.
+  - **a circular BOM is rejected, and a component cannot be its own ancestor** — three refusals with the path named: the bicycle as its own component (*"cannot be a component of its own BOM"*), the frame added to the tube made from it, and the bicycle added two levels up (*"would close a loop: … is already made from …"*). `_refuse_cycle` walks the items reachable *down* from the component; the explosion's own `CircularBomError` is the backstop, not the detection.
+  - **scrap of zero is not "unset"** — the wheel's line states `0.0000` and the tube's states nothing; both take no uplift, the explosion reports `scrap_percent: Decimal('0.0000')` against `None`, and the wheel's requirement is `20.000000` (not 21).
+  - **a BOM in use cannot be silently changed** — editing the released wheel BOM is refused (`BomLockedError`); `revise` produces the next version as a **draft** carrying the same make-up, the released version still explodes to the same figures after the revision is edited, and the revision's own explosion moves (`22.000000` → `16.000000` tyres per 10 units once a half-tyre line is added).
+  - **the walk and the totals agree** — the level list summed per item equals `required` for all six components.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**66/66**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (this id adds no HTTP surface).
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer (with Domain Analyst — Manufacturing)
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-4.BOM.02
 - **Title**: Routing — operations and their sequence
