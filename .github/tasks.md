@@ -1556,10 +1556,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `operation_sequence`, `uom_conversion_factor`.
 - **Dependencies**: T-4.BOM.01
 - **Acceptance Criteria**: Operations carry a unique sequence within the BOM; times are expressed per unit and per batch consistently and the basis is labelled; a component can be assigned to a specific operation or to the BOM generally, and both are reported; a routing cannot have a gap or duplicate sequence.
-- **Evidence**: A four-operation routing with one operation-specific component, validated and displayed in order.
+- **Evidence**: **DONE** — the routing and its sequencing, in the **backend repository**. New module `app/manufacturing/routing.py` (`RoutingOperation`, `add_operation`, `assign_component`, `operations`, `routing`, `operation_minutes`, `routing_minutes`, `unassigned`, `sequence_check`), the one check `tests/check_routing.py` (five sections):
+  - **a four-operation routing, validated and displayed in order** — Cut tube (CUT), Weld frame (WELD), Paint (PAINT), Assemble (unassigned), sequences `[1, 2, 3, 4]`; the paint kit is assigned to step 3 and shown under it, while the frame and the wheel are reported as the BOM's own components — **both groups**, so neither hides the other.
+  - **a sequence cannot repeat or leave a hole** — a second operation at sequence 2 is refused (`DuplicateOperationError`) and sequence 7 when 5 was expected is refused naming the expected number (`SequenceGapError`); appending gives `[1, 2, 3, 4, 5]`, which `sequence_check` reports as dense with no duplicate.
+  - **times state their basis, and both bases are accepted** — the report carries `setup_basis: per_batch` and `run_basis: per_unit`; Weld was timed *12 minutes for 4 units*, is stored as `3.000000` a unit, and `run_basis_minutes` still returns the stated `12.000000`. A batch of 10 is hand-checked: `15 + 2×10`, `20 + 3×10`, `30 + 5×10`, `10 + 8×10` and `0 + 1×10` sum to `265.000000` minutes — setup once each, the run per unit.
+  - **a released BOM's routing is frozen** — adding an operation and re-assigning a component are both refused (`RoutingLockedError`), so the route changes by revising the BOM, exactly as its lines do.
+  - **an unassigned operation is reported** — Assemble names no work centre and `unassigned` returns it, rather than capacity planning loading it onto nobody.
+  **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**67/67**) and `tests/check_ledger_integrity.py` green. No contract or frontend change.
 - **Estimated Effort**: M
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Stream: `WC` — Work Centers & Capacity (§2.4)
 
