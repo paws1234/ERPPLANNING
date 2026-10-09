@@ -228,6 +228,36 @@ A `/do-task` run must land its diff in the repository named in the map above —
 
 > **Recorded 2026-10-09 (T-5.EMP.02)** — this task sits on the Frontend row, but its scope names **both halves**: the reporting *model* is the backend's (the frontend never reaches the database, so a hierarchy it computed itself would be a second record of the structure), and the chart is the frontend's. It landed as **one commit per repository in the same run**, which is the handling the map states for a task whose scope names both halves. No other Phase 5 id is affected: `T-5.EMP.01`, `T-5.EMP.03`, the `ATT`/`LEAVE`/`PAY` streams and `T-5.X.GATE` are backend-only, and the map is otherwise unchanged.
 
+> **Batch hand-off recorded 2026-10-10 (Phase 5, `/do-task-one-go`)** — the whole Phase 5 closure was
+> selected and implemented in one run: **T-5.EMP.01–03, T-5.LEAVE.01–03, T-5.ATT.01–03, T-5.PAY.01–08
+> and T-5.X.GATE**, eighteen ids, each with its own check and its own commit.
+>
+> * **Branches**: `one-go/T-5.EMP.01` in all three repositories, one commit per task (eighteen in
+>   `ERPbackend`, one in `ERPfrontend` — the only id of the phase that touches it — and one in this
+>   ledger, because the eighteen ids' entries interleave in one file and hunk-splitting it would
+>   attribute nothing the evidence does not already say).
+> * **Pull requests**: [paws1234/ERPbackend#15](https://github.com/paws1234/ERPbackend/pull/15),
+>   [paws1234/ERPfrontend#11](https://github.com/paws1234/ERPfrontend/pull/11) and
+>   [paws1234/ERPPLANNING#19](https://github.com/paws1234/ERPPLANNING/pull/19) — awaiting review.
+> * **Pipelines, on the pushed commits**: the backend's `checks (unit · integration · ledger
+>   integrity)` **passed** on both runs (2m41s / 2m58s — every `tests/check_*.py` and then the gate),
+>   and the frontend's `checks (contract · typecheck · build · client)` **passed** (32s / 24s). This
+>   ledger repository has no workflow, so its pull request reports no checks.
+> * **The post-push read of the pushed diff** — the branch's forty-one changed files were read back
+>   from the pull request: the app modules and their checks, `app/api.py`'s one endpoint,
+>   `app/workflow.py`'s `require_chain`, the pack's `covers_rules` with the localization accessor,
+>   and the republished contract. **Nothing unintended was found** — no debug output, no stray file,
+>   no change outside the task that owns it — so no follow-up commit was needed, and the batch's two
+>   findings are the ones already recorded against their own ids (the date a leave check was reading,
+>   and the cent the payment file could not pay).
+> * **Boundaries the phase did not close**, recorded so the next run does not read them as gaps:
+>   weekly rest is stated nowhere in the ledger's calendar, so a leave day count is the calendar's own
+>   answer; the pack states no tax treatment for its contributions, so no pre-tax treatment is claimed
+>   for them; it states a **0 %** rate for compensation withholding and says its schedules are
+>   elsewhere, so that return is the pack's figure rather than an invented one; and an exited
+>   employee's placement stays in force, so the org chart still draws them (no task names vacancy
+>   handling).
+
 ---
 
 ## Cross-cutting / foundations
