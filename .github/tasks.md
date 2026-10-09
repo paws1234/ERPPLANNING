@@ -1759,10 +1759,16 @@ A `/do-task` run must land its diff in the repository named in the map above —
 - **Variables / Config**: `mrp_horizon_days`, `mrp_bucket`, `scrap_percent`.
 - **Dependencies**: T-4.MRP.01, T-4.MRP.02
 - **Acceptance Criteria**: Expected net requirements are calculated independently (by hand or a separate method) for a dataset that exercises multi-level BOMs, scrap, partial stock and open supply; the engine's output must match **exactly — 100 %, any difference is a defect** (target set 2026-09-17); the dataset and the full comparison are recorded.
-- **Evidence**: The comparison table (expected vs engine, per item per bucket) showing a 100 % match, and any difference raised as a defect rather than explained away.
+- **Evidence**:
+  - Verification in `tests/check_mrp_accuracy.py` — the expectations are typed in as figures derived by hand from the dataset (three levels: BICYCLE → FRAME → TUBE, WHEEL bought; 10 % scrap on the frame's tube line; 4 tubes and 6 wheels on the shelf before the horizon; open supply from **both** sources — an open work order for 2 bicycles due `2026-10-07` and an approved purchase order for 5 wheels required `2026-10-16`), never read back out of the engine.
+  - **the comparison is exact — 100.00 %**: **80 of 80** field comparisons (8 rows × 10 fields: gross, available, supply, net, kind, level, lead time, release date, constrained, constrained-by), zero differences. The full table is printed by the check, row by row, with the derivation of each figure beside it: `BICYCLE W1 gross 10 supply 2 net 8`; `FRAME W1 gross 8 net 8`; `TUBE W1 gross 44 available 4 net 40 release 2026-10-02`; `WHEEL W1 gross 16 available 6 net 10`, and the same four items in week 2 (`TUBE 44/0/22`, `WHEEL 8/0/5/3`).
+  - **the engine's own arithmetic reconciles row by row** — every net is `gross - available - supply`, every component's gross is the level above's net × BOM quantity × scrap up-lift (`8 × 5 × 1.10 = 44`, `4 × 5 × 1.10 = 22`), the 4 tubes on hand were spent once (week 1) and not again, and the purchase order's 5 wheels were claimed once — agreement is not two methods reproducing one bug.
+  - **the comparison is not vacuous** — one unit of difference on one row produces exactly one finding (`2026-10-05 BICYCLE net: expected 7.000000, engine 8.000000`), so the 100 % is the engine agreeing rather than nothing being compared.
+  - **Finding, recorded rather than explained away** — the plan reads stock as T-1.INV.03's ledger sum **as of the horizon's end**, so it is not dated inside the horizon: a receipt of 4 tubes dated `2026-10-20` (two buckets after they were wanted) moved week 1's `available` from 4 to 8 and its net from 40 to 36, and touched no other row. This is the module's documented reading of stock ("the ledger sum, no balance table"), measured here so the 100 % does not rest on an unstated assumption; dating stock inside the horizon would be a change to **T-4.MRP.01** (its own Scope line: corrections are new findings for the owning task), and is carried forward as a follow-up rather than made inside a verification.
+  - **Pipeline run locally for this id, after its last edit**: the backend's loop over `tests/check_*.py` green (**77/77**) and `tests/check_ledger_integrity.py` green. No contract or frontend change (no HTTP surface added).
 - **Estimated Effort**: M
 - **Owner Role**: QA / Test Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 ### Phase Exit Gate
 
