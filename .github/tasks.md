@@ -37,7 +37,7 @@
 | Repositories | **Backend and frontend are separate repositories** — each with its own pipeline and published image; the published API contract artifact is the only coupling between them |
 | Confirmed as scheduled | Five §2 components with no phase · capacity split P4/P6 · shared Party in Phase 0 · inter-company out of scope · §7 read as Phase 0 scope |
 
-> **Scope of this ledger**: every task below is `TODO`. No product code, scaffolding, config, or folder is created by `/execute`. Implementation belongs to `/do-task`, one task per run.
+> **Scope of this ledger**: `/execute` emitted it with every task `TODO`. As of 2026-10-10 all 119 of its tasks — Phase 0 through `T-6.X.GATE` — are `DONE`, so no id is selectable; the only open decisions left to it are the five under *Open Questions & Conflicts → Still open*. No product code, scaffolding, config, or folder is created here. Implementation belongs to `/do-task`, one task per run.
 
 ---
 
@@ -2549,6 +2549,8 @@ A `/do-task` run must land its diff in the repository named in the map above —
 
 ### Still open
 
+**Recorded 2026-10-10: these five are the whole of what this ledger still owes — no task id is left `TODO`, so this list is the backlog a future run reads, and nothing new starts from here until one of them is decided or new tasks are added.**
+
 1. **Philippines fiscal year start** — needed by the CoA, period locking, the statements and payroll; it must be confirmed with the pack in `T-0.LOC.01` rather than assumed. *(Affects `T-0.LOC.01`, `T-1.ACCT.01`, `T-1.ACCT.04`, `T-1.ACCT.07`.)*
 2. **Job-queue library** — Postgres-backed is decided; `pgqueuer` vs `procrastinate` is not pinned. *(Affects `T-0.REPORT.01`, `T-0.CICD.01`, `T-3.AR.03`, `T-3.AR.04`, `T-6.OFFLINE.01`, `T-6.OFFLINE.02`.)*
 3. **Remaining configuration defaults** — deferred by decision 7b to the phase that needs each: `fx_rate_source`, `approval_thresholds`, `three_way_match_tolerance`, aging buckets, `dunning_levels`, `credit_check_mode`, `mrp_horizon_days` / `mrp_bucket`, `payroll_cutoff_day`, `shift_definitions`, `overtime_rules`, `leave_accrual_rule`, supplier scoring weights, `report_schedule`.
@@ -2559,4 +2561,4 @@ A `/do-task` run must land its diff in the repository named in the map above —
 
 ---
 
-*Every task above is `TODO`. Statuses are owned by `/do-task` and must not be changed here.*
+*Every task above is `DONE` as of 2026-10-10, and no id remains selectable. Statuses are owned by `/do-task` and must not be changed here.*
