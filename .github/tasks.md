@@ -39,6 +39,8 @@
 
 > **Scope of this ledger**: `/execute` emitted it with every task `TODO`. As of 2026-10-10 all 119 of its tasks — Phase 0 through `T-6.X.GATE` — are `DONE`, so no id is selectable; the only open decisions left to it are the five under *Open Questions & Conflicts → Still open*. No product code, scaffolding, config, or folder is created here. Implementation belongs to `/do-task`, one task per run.
 
+> **Update 2026-10-10 (ledger handover — supersedes the paragraph above).** Plan §4b added Phases 7–15 and the production principles. Phase 7 was written by the run that implemented it; that run's section is reconciled here, and this `/execute` handover (`phase-7-ledger-handover`) has since **derived Phases 8–15 and their gates from plan §4b and §9** — so ids *are* selectable again. Still `TODO` and selectable: `T-7.WEB.01`, `T-7.X.GATE`, and every task of Phases 8–15. Phases 0–6 are untouched, statuses included.
+
 ---
 
 ## Variables & Scope
@@ -117,6 +119,54 @@ Every value the plan treats as configurable or instance-specific. "Not stated" m
 | `container_registry` | Where the two service images are published and pulled from | Registry URL + namespace | **`ghcr.io/paws1234`** — public packages (decided 2026-09-18, `T-0.CICD.01`) | `T-0.CICD.01`, `T-0.CICD.02`, `T-0.DEPLOY.03` |
 | `journal_balance_invariant` | Debit must equal credit on every posting | Always on — **not configurable** | Always on | All posting paths (§6 metric 1) |
 
+### Variables added with Phases 7–15 (plan §9, added 2026-10-10)
+
+Every value below is read once at startup and validated (§4b Phase 8, principle 6). A value marked *[proposed]* is a suggestion awaiting confirmation by the phase that adopts it; a value marked *required* has no default and refuses to start without it. **The `job_queue` row above is superseded by plan §8's pin of 2026-10-10: the library is `pgqueuer`.**
+
+| Variable | Allowed values / source | Default | Applies to |
+|---|---|---|---|
+| `queue_library` | `pgqueuer` | `pgqueuer` | Phase 8 (T-8.WORK.01) |
+| `worker_concurrency` | int | 4 *[proposed]* | Phase 8 |
+| `log_level` | `debug`–`error` | `info` | Phase 8 |
+| `log_format` | `json` \| `text` | `json` | Phase 8 |
+| `metrics_enabled` | bool | `true` | Phase 8 |
+| `error_tracking_dsn` | url, or unset | unset (OQ-4) | Phase 8 |
+| `readiness_timeout_seconds` | 1–30 | 3 *[proposed]* | Phase 8 |
+| `smtp_host` / `smtp_port` / `smtp_user` / `smtp_password` / `smtp_from` / `smtp_starttls` | host, port, credential | required for delivery (OQ-11) | Phase 8 |
+| `sms_provider` + credentials | provider enum, or unset | unset (OQ-11) | Phase 8 |
+| `delivery_max_attempts` / `delivery_backoff_minutes` | int | 5 / exponential to 60 *[proposed]* | Phase 8 |
+| `session_ttl_minutes` | 5–1440 | 720 *[proposed]* | Phase 7 |
+| `session_idle_timeout_minutes` | 5–480 | 60 *[proposed]* | Phase 7 |
+| `password_min_length` | 8–64 | 12 *[proposed]* | Phase 7 |
+| `argon2_parameters` | time / memory / parallelism | library default, stated | Phase 7 |
+| `lockout_threshold` / `lockout_window_minutes` | int | 5 / 15 *[proposed]* | Phase 7 |
+| `mfa_required_roles` | role codes | `administrator` (OQ-5) | Phase 7 |
+| `recovery_code_count` | 5–20 | 10 *[proposed]* | Phase 7 |
+| `rate_limit_rps` / `rate_limit_burst` | int | 20 / 40 *[proposed]* | Phase 9 |
+| `max_request_bytes` | int | 1 MiB *[proposed]* | Phase 9 |
+| `field_encryption_key` (or its reference) | secret reference | required (OQ-3) | Phase 9 |
+| `backup_schedule` / `backup_retention_days` | cron / int | daily 02:00 / 30 *[proposed]* | Phase 9 |
+| `rpo_hours` / `rto_hours` | int | 24 / 4 *[proposed]* | Phase 9 |
+| `uvicorn_workers` | int | 2 *[proposed]* | Phase 9 |
+| `db_pool_size` / `db_pool_max_overflow` | int | 5 / 10 *[proposed]* | Phase 9 |
+| `db_statement_timeout_ms` | int | 15000 *[proposed]* | Phase 9 |
+| `tls_domain` / `acme_email` | dns / email | required (OQ-10) | Phase 9 |
+| `staging_image_tag` / `production_image_tag` | registry references | required | Phase 9 |
+| `doc_number_scope` | `company` \| `company_fiscal_year` | `company_fiscal_year` *[proposed]* | Phase 10 |
+| `doc_number_gap_policy` | `refuse` \| `allow_recorded` | `refuse` | Phase 10 |
+| `max_upload_bytes` | int | 10 MiB *[proposed]* | Phase 10 |
+| `allowed_upload_types` | MIME allow-list | pdf, png, jpeg, csv, xlsx | Phase 10 |
+| `fiscal_year_start_month` | 1–12, per company | **required per install** (the pack refuses to guess — OQ-1) | Phase 10 / 14 |
+| `fx_rate_source` | provider enum \| `manual` | `manual` until a provider is chosen | Phase 11 |
+| `reconciliation_amount_tolerance` | decimal | `0.00` | Phase 11 |
+| `max_page_size` | int | 200 *[proposed]* | Phase 11 |
+| `coverage_floor_backend` / `coverage_floor_frontend` | percent | 70 / 60 *[proposed]* | Phase 12 |
+| `data_retention_*` (export, erasure, log, attachment) | period | pending OQ-9 | Phase 12 |
+
+The §8 decideds stand unchanged for these phases too: moving-average costing, per-company valuation scope, month period locking, no negative stock, EAN/UPC + QR, Philippines localization, `ghcr.io/paws1234`.
+
+**Undecided at the time these phases were materialised** (plan §12): OQ-1 fiscal-year start (per install), OQ-2 functional scope, OQ-3 key custody, OQ-4 error/metrics sink, OQ-5 MFA policy, OQ-6 machine callers, OQ-7 statutory filings, OQ-8 POS hardware, OQ-9 retention, OQ-10 DNS/host/backup target, OQ-11 SMTP/SMS provider, OQ-12 contract-publication trigger.
+
 ### Success metrics → owning tasks
 
 | Metric (§6) | Owning task(s) | Gate |
@@ -128,6 +178,26 @@ Every value the plan treats as configurable or instance-specific. "Not stated" m
 | Payroll calculation error rate < 0.1 % | T-5.PAY.08 | T-5.X.GATE |
 | POS transaction latency (online) < 2 s | T-3.POS.06 | T-3.X.GATE |
 | Full audit trail for every master and transaction change | T-0.AUDIT.02, T-6.HARD.04 | T-6.X.GATE |
+
+### Success metrics added with Phases 7–15 (plan §6, added 2026-10-10)
+
+| Metric (§6) | Owning task(s) | Gate |
+|---|---|---|
+| Identity — 100 % of routes refuse an unauthenticated request (no exceptions beyond health, login, the contract and the docs); 0 routes read `X-Actor` or `X-Company-Id` | T-7.AUTH.02, T-7.SEC.01, T-7.WEB.01 | T-7.X.GATE |
+| Isolation — a session bound to company A is refused or returns no row for company B on 100 % of routes, enumerated by a check | T-7.AUTH.02, T-7.ADMIN.01 | T-7.X.GATE |
+| Schema — `alembic upgrade head` from empty succeeds; `alembic check` reports 0 drift; a restore-then-upgrade drill passes | T-8.MIG.01, T-8.MIG.02, T-9.BACKUP.02 | T-8.X.GATE, T-9.X.GATE |
+| Background work — 100 % of declared schedules observed firing; a duplicate run produces 0 duplicate effects; 100 % of runs recorded with an outcome | T-8.WORK.01, T-8.WORK.02 | T-8.X.GATE |
+| Observability — 100 % of requests produce a log line with a correlation id; readiness answers `503` within 5 s of the database going away; 0 responses contain an exception class name or message | T-8.OBS.01, T-8.OBS.02, T-8.OBS.03 | T-8.X.GATE |
+| Delivery — ≥ 99 % delivery success over a 100-message run with SMTP configured; 100 % of failures recorded with an attempt count | T-8.DELIVERY.01 | T-8.X.GATE |
+| Edge — 0 plain-HTTP paths to the application; over-rate requests answer `429`; over-size bodies answer `413` | T-9.EDGE.01, T-9.EDGE.02 | T-9.X.GATE |
+| Backups — RPO ≤ 24 h and RTO ≤ 4 h, both verified by a timed restore drill *(proposed)* | T-9.BACKUP.01, T-9.BACKUP.02 | T-9.X.GATE |
+| Numbering — 0 gaps and 0 duplicates in 10 000 randomized allocations; 0 body-supplied numbers accepted for statutory types | T-10.NUM.01 | T-10.X.GATE |
+| Fiscal close — the trial balance balances after close, retained earnings ties to the closed result, the balance sheet is unchanged by the close — 0 tolerance, any difference is a defect | T-10.CLOSE.01 | T-10.X.GATE |
+| Concurrency — 0 lost updates under concurrent edits; 100 % of mutating routes idempotent | T-11.CONC.01, T-11.IDEM.01 | T-11.X.GATE |
+| Pagination — 21 of 21 list routes paginated, each with a maximum page size | T-11.PAGE.01 | T-11.X.GATE |
+| PII — 0 plaintext bank account numbers in a raw table read | T-9.CRYPTO.01 | T-9.X.GATE |
+| Assurance — backend coverage ≥ 70 % and frontend ≥ 60 % *(proposed)*; 0 high or critical dependency findings outstanding; 0 critical accessibility violations | T-12.TEST.01, T-12.SCAN.01, T-12.E2E.01 | T-12.X.GATE |
+| No regression — 100 % of the existing `tests/check_*.py` still pass, and the ledger-integrity gate still passes after Phases 7–14 | T-12.TEST.01, T-12.PROP.01, T-12.DATA.01 | T-12.X.GATE, T-14.X.GATE |
 
 ### Global scope
 
@@ -178,6 +248,51 @@ Every value the plan treats as configurable or instance-specific. "Not stated" m
 - **OUT**: nothing new — this phase hardens and completes what Phases 1–5 built; batch/lot and serial *tracking* now lives in Phase 1
 - **EXIT CRITERIA** (added to plan §4 on 2026-09-17 — previously unstated; restated as checks in `T-6.X.GATE`): advanced plan is capacity-respecting and deterministic · forward/backward trace crosses a production step · portal isolation verified · offline POS syncs exactly once · biometric ingest idempotent · dashboards and scheduled reports reconcile · performance measured with POS < 2 s at load · security review complete with no unguarded endpoint · every market pack complete · audit coverage complete · §6 metrics 1–5 re-measured and still met
 
+**Phase 7 — Identity & Access** (plan §4b, added 2026-10-10)
+- **IN**: `app/identity.py`, `app/auth.py`, `app/admin.py`, `context()` rewritten, `app/security.py` taking its subject from the session, the republished contract, and the frontend half (`app/login/page.tsx`, `lib/session.ts`)
+- **OUT**: SSO/OIDC and scoped machine tokens (plan §8 non-goals; OQ-6); the session *transport* (TLS is Phase 9); password reset by email (Phase 8's delivery transport)
+- **EXIT CRITERIA** (verbatim from the plan): every route except health, login, the contract and the docs answers `401` without a valid session, asserted by a check that enumerates the route table · no route reads `X-Actor` or `X-Company-Id`, and neither appears in the published contract · a session bound to company A receives no row and no `200` for company B on any route · an administrator creates a user and grants a role through the API, and the user's next request is permitted, with no deploy and no SQL · a company is created and suspended through the API, and a suspended company's users are refused · MFA is enforced for the administrator role and a reused code is refused; lockout after N failures in the window is in the audit trail · the frontend signs in, survives a reload, and signs out
+
+**Phase 8 — Platform Operations** (plan §4b, added 2026-10-10)
+- **IN**: Alembic baseline + migrations with the RLS half of `app/db.py` invoked from the migration environment; `app/queue.py`, `app/worker.py`, `app/schedule.py` on `pgqueuer` with a worker service in the compose stack; `app/observability.py`; `app/api.py` health split, `500` hygiene, `/metrics`, the request log; `app/config.py` validated at startup; transports registered from configuration with a `delivery` row per attempt; `OPERATIONS.md`; the checks for each
+- **OUT**: the edge/proxy, TLS, rate limits and backups (Phase 9); the deploy pipeline (Phase 9); lint, types and coverage tooling (Phase 12)
+- **EXIT CRITERIA** (verbatim from the plan): `alembic upgrade head` on an empty database yields a schema whose RLS policies match the `create_all` schema table by table and `alembic check` reports no drift · a second `upgrade head` is a no-op and the install CLI runs on top of migrations idempotently · the worker container is in the stack and every schedule in `app/schedule.py` has been observed to fire in a check · a job run twice produces one effect and a failing job retries and records the attempt and its error · readiness answers `503` within the timeout when the database is stopped and `200` when it returns, with liveness `200` throughout · a forced unhandled exception answers `500` with `internal_error` and a correlation id, and no exception class, message, path or SQL appears in the body · every request produces one structured log line carrying the correlation id, and a credential never appears in it · with SMTP configured a delivery reaches the sink and without it the attempt is recorded, never a `500` · a missing or malformed `DATABASE_URL` fails at startup with a named variable
+
+**Phase 9 — Edge, Secrets & Backup** (plan §4b, added 2026-10-10)
+- **IN**: `Caddyfile` and a `proxy` service; `app/crypto.py` (envelope encryption, payroll bank details first); `scripts/backup.sh` and `scripts/restore-drill.sh` with retention; compose resource limits and the scaling variables; staging and production deploy jobs with a rollback; release-time contract publication; the checks for each
+- **OUT**: Kubernetes, multi-region or autoscaling (plan §8 non-goals); the domain screens; any change to the ledger, RLS or the audit trail
+- **EXIT CRITERIA** (verbatim from the plan): plain HTTP on the public port redirects to HTTPS with a valid certificate and the backend's port is not published · requests above the configured rate answer `429` with `Retry-After` and bodies above the limit answer `413` · payroll bank account numbers are unreadable in a raw table read and readable through the API only to a permitted caller · a backup lands off the host and the restore drill restores it, runs the ledger gate, and finishes within the recorded RTO · a deploy rolls back to the previous image tag, exercised in the pipeline · the release job republishes the contract and the frontend's pinned artifact matches the released backend
+
+**Phase 10 — Document Control & Fiscal Close** (plan §4b, added 2026-10-10)
+- **IN**: `app/numbering.py` (gapless sequences per company, document type and fiscal year); `app/documents.py` (PDF for invoice, payslip, statement, purchase order, delivery note, receipt); `app/attachments.py`; audit read/query routes; `app/ledger/closing.py`; the Philippines statutory artefacts; the checks for each
+- **OUT**: e-invoicing/BIR *transmission* (OQ-7 — artefacts are produced, transmission is out); the document screens (frontend — Phase 13's attachments UI only)
+- **EXIT CRITERIA** (verbatim from the plan): a statutory document's number is allocated by the server, a body-supplied number for that type is refused, and 10 000 randomized allocations produce zero gaps and zero duplicates · numbers are unique per company, document type and fiscal year, and a new fiscal year starts at its own first number · each document renders to a PDF whose totals reconcile to the JSON that produced it · an attachment uploads, lists against its document, downloads byte-identical, and is refused when its type or size is not allowed · the audit trail is readable through the API with filters and pagination and a caller without the capability is refused · a fiscal year closes with the trial balance still balancing, P&L accounts zero, retained earnings equal to the closed result, the balance sheet unchanged, and the next year opening with the closing balances — asserted from stored rows · a close can be reversed and the reversal is audited
+
+**Phase 11 — Data Integrity & API Hardening** (plan §4b, added 2026-10-10)
+- **IN**: `row_version` columns with `409` on a stale write; `Idempotency-Key` on every mutating route; `limit`/`offset` with a maximum page size on every list route; the bank reconciliation workflow (statement import, matching, exceptions); an FX provider adapter with recorded provenance; POS device adapters behind interfaces; a disposition for each of the 29 ceilings
+- **OUT**: the devices themselves (OQ-8 — adapters plus simulators are the deliverable); transmission of statutory filings; any change to the ledger or posting primitive
+- **EXIT CRITERIA** (verbatim from the plan): two concurrent writers to one document leave the second with `409` and no update lost · a replayed mutation with the same key and body answers the first result on every mutating route · every list route is paginated with a maximum page size (21 of 21) · a bank statement imports, matches and reports its exceptions, and a reconciliation closes and is reversible · an FX sync records each rate with its source and a provider failure leaves the previous rate in force and is visible · every recorded ceiling carries a disposition and each "schedule" entry names the phase that owns it
+
+**Phase 12 — Engineering Standards & Assurance** (plan §4b, added 2026-10-10)
+- **IN**: `pyproject.toml` (ruff, mypy, pytest); hashed lockfiles; a pytest runner with a coverage floor; property and golden financial datasets; frontend ESLint/Prettier; Playwright E2E and an axe accessibility pass; Dependabot; `pip-audit`/`npm audit`; CodeQL; CODEOWNERS; tenant export and erasure tooling; an updated `TESTING.md`
+- **OUT**: changing any financial behaviour to make a check pass; the domain screens; coverage of code the plan does not name
+- **EXIT CRITERIA** (verbatim from the plan): `ruff check`, `ruff format --check` and `mypy` run in CI and pass, and a deliberate violation fails the run · every existing `tests/check_*.py` still runs, now under pytest, with coverage measured and the floor met · the property suite exercises the ledger invariants over randomized postings with no violation and the golden payroll and close sets are stable · a high-severity dependency finding arrives as a Dependabot pull request, `pip-audit` and `npm audit` report nothing outstanding, and CodeQL runs on both repositories · Playwright drives sign-in → MFA → admin → sign-out in a browser and axe reports no critical violation on any page · a tenant export produces a complete artefact and an erasure request anonymises a person without altering a posting, with the ledger gate still passing
+
+**Phase 13 — Frontend Operational Shell** (plan §4b, added 2026-10-10)
+- **IN**: the login/MFA/session UI; the company switcher; admin screens (users, roles, grants, companies); the audit trail viewer; the attachments UI; `error.tsx`/`loading.tsx`/`not-found.tsx` per route segment; `lib/i18n.ts` with locale-aware number and date formatting and a matching `lang` attribute
+- **OUT**: every domain screen (GL, AP, AR, procurement, inventory, manufacturing, payroll, HR, reporting) — plan §8 non-goals, deferred to their own later phases (finding 28's second half); offline-first rework; a mobile app
+- **EXIT CRITERIA** (verbatim from the plan): sign in, MFA, expiry, sign out and company switch all work against the real API · an administrator creates a user and grants a role from the UI · every route segment has the three boundaries and a thrown error renders the boundary, not a blank page · amounts and dates render per locale and no admin string is hard-coded English
+
+**Phase 14 — Onboarding & Legacy Migration** (plan §4b, added 2026-10-10)
+- **IN**: the company provisioning API/CLI on top of migrations; `tools/import_legacy.py` (chart-of-accounts extensions, customers, suppliers, items, BOMs, warehouses, employees, opening balances as one balanced opening entry); `MIGRATION.md` (freeze, export, transform, import, reconcile, go-live, rollback) and its check
+- **OUT**: ongoing integration with any legacy system (one-way cutover only); master-data cleanup beyond what the import maps
+- **EXIT CRITERIA** (verbatim from the plan): a company is provisioned through the API with its market, fiscal calendar and reporting currency, and the act is audited · an import of masters and opening balances yields an opening trial balance that ties to the source within zero tolerance and the ledger gate passes afterwards · the cutover runbook has been executed end to end on a faithful export, including its rollback step
+
+**Phase 15 — Functional Completeness: decision gate** (plan §4b, added 2026-10-10)
+- **IN**: a recorded IN/OUT decision for each of the nine candidates — fixed assets & depreciation, budgeting/forecast-vs-actual, treasury/cash management, project & job costing, preventive maintenance, quality management, multi-entity consolidation, e-invoicing/BIR transmission, e-signature — and the explicit resolution of the two that contradict §8's non-goals
+- **OUT**: building anything from the gate without a written decision (plan exit criterion 3)
+- **EXIT CRITERIA** (verbatim from the plan): each candidate is recorded as IN (with its own phase sketched) or OUT (with a reason), by the user · the two candidates that contradict §8's recorded non-goals — consolidation and quality management — are resolved explicitly · nothing is built from this gate without a written decision
+
 ---
 
 ## Task ID scheme
@@ -193,6 +308,15 @@ Every value the plan treats as configurable or instance-specific. "Not stated" m
   - Phase 4: `BOM`, `WC`, `WO`, `MRP` (§2.4)
   - Phase 5: `EMP`, `ATT`, `LEAVE`, `PAY` (§2.6)
   - Phase 6: `ADV`, `TRACE` (trace *reporting* only — tracking is Phase 1), `PORTAL`, `OFFLINE`, `ANALYTICS`, `HARD` (§4 Phase 6)
+  - Phase 7: `AUTH` (the door), `ADMIN` (administration), `INST` (the install), `SEC` (the review), `WEB` (the frontend session shell) (§4b Phase 7)
+  - Phase 8: `MIG` (schema evolution), `CFG` (validated configuration), `WORK` (queue, worker, schedules), `OBS` (logs, health, error hygiene, metrics), `DELIVERY` (transports and delivery records), `OPS` (the operations runbook) (§4b Phase 8)
+  - Phase 9: `EDGE` (TLS, proxy, rate and size limits), `SECRETS` (secret references and rotation), `CRYPTO` (envelope encryption and PII), `BACKUP` (off-host dumps and the restore drill), `DEPLOY` (deploy jobs, rollback, limits and scaling), `RELEASE` (contract publication) (§4b Phase 9)
+  - Phase 10: `NUM` (gapless numbering), `DOC` (PDF renditions), `ATT` (attachments), `AUDIT` (audit read and query), `CLOSE` (fiscal close), `STAT` (Philippines statutory artefacts) (§4b Phase 10)
+  - Phase 11: `CONC` (row versions and `409`), `IDEM` (idempotency keys), `PAGE` (pagination), `RECON` (bank reconciliation), `FX` (rate provenance), `DEV` (POS device adapters), `CEIL` (ceiling dispositions) (§4b Phase 11)
+  - Phase 12: `LINT` (ruff and mypy), `PKG` (packaging, lockfiles, types), `TEST` (the pytest runner and coverage floor), `PROP` (property and golden datasets), `SCAN` (dependency, audit and CodeQL scanning), `FE` (frontend lint), `E2E` (Playwright and axe), `GOV` (CODEOWNERS and `TESTING.md`), `DATA` (tenant export and erasure) (§4b Phase 12)
+  - Phase 13: `AUTH` (login, MFA, session UI), `SWITCH` (company switcher), `ADMIN` (admin screens), `AUDIT` (audit viewer), `ATT` (attachments UI), `SHELL` (route-segment boundaries), `I18N` (locale formatting) (§4b Phase 13)
+  - Phase 14: `PROV` (company provisioning), `IMPORT` (legacy import), `RUNBOOK` (the cutover runbook) (§4b Phase 14)
+  - Phase 15: `SCOPE` (the candidate decisions) (§4b Phase 15)
 - **Seq** — zero-padded sequence within the stream.
 - **GATE** — `T-<Phase>.X.GATE`, one per phase; must be `DONE` before any task of a later phase may start.
 - **Ordering (API-first, decided 2026-09-17)** — within every phase, backend/API tasks precede the frontend tasks that consume them: no UI task starts before the API it reads is contract-published. The frontend is a separate deployable and never reaches the database.
@@ -227,6 +351,17 @@ The skills carry this map: `/plan` records the repository layout in the plan, `/
 A `/do-task` run must land its diff in the repository named in the map above — `ERPV1/ERPbackend` or `ERPV1/ERPfrontend` — running from the workspace root.
 
 > **Recorded 2026-10-09 (T-5.EMP.02)** — this task sits on the Frontend row, but its scope names **both halves**: the reporting *model* is the backend's (the frontend never reaches the database, so a hierarchy it computed itself would be a second record of the structure), and the chart is the frontend's. It landed as **one commit per repository in the same run**, which is the handling the map states for a task whose scope names both halves. No other Phase 5 id is affected: `T-5.EMP.01`, `T-5.EMP.03`, the `ATT`/`LEAVE`/`PAY` streams and `T-5.X.GATE` are backend-only, and the map is otherwise unchanged.
+
+### Routing for Phases 7–15 (added 2026-10-10, with plan §4b)
+
+The two-repository split above stands. Every id added by plan §4b routes as follows — no task is left unroutable:
+
+| Repo | Tasks |
+|---|---|
+| **Backend repository** | every Phase 7–12, 14 and 15 task not named on another row — `T-7.AUTH.*`, `T-7.ADMIN.*`, `T-7.INST.*`, `T-7.SEC.*`, all of `T-8.*` (including the `Caddyfile` and the scripts of `T-9.*`), `T-9.*`, `T-10.*`, `T-11.*`, `T-12.*` except the frontend rows below, `T-14.*` |
+| **Frontend repository** | `T-7.WEB.01` (the session shell — this is what the Phase 7 gate waits on); `T-12.FE.01` (ESLint/Prettier) and `T-12.E2E.01` (Playwright and axe run against the frontend); all of `T-13.AUTH.*`, `T-13.SWITCH.*`, `T-13.ADMIN.*`, `T-13.AUDIT.*`, `T-13.ATT.*`, `T-13.SHELL.*`, `T-13.I18N.*` |
+| **Planning repository** (no product code) | `T-15.SCOPE.01`, `T-15.SCOPE.02` — the decisions are recorded in the plan and this ledger; `T-15.X.GATE` is the gate over those records |
+| **Both** — API and postings in the backend, the client in the frontend | `T-12.E2E.01` (it drives the frontend against the backend's published contract, in the same run the map states for a task whose scope names both halves); the verification gates `T-7.X.GATE`, `T-8.X.GATE` … `T-15.X.GATE` span both repositories where the criterion names both |
 
 ---
 
@@ -2525,6 +2660,1260 @@ A `/do-task` run must land its diff in the repository named in the map above —
 
 ---
 
+## Phase 7 — Identity & Access (plan §4b, added 2026-10-10)
+
+> **Provenance, stated plainly — corrected 2026-10-10.** This section was written by the run that
+> *implemented* Phase 7, not by `/do-task`, which owns every status in this ledger: the tasks and
+> their evidence were derived from plan §4b and executed in one sitting, with no `/execute` pass
+> materialising the section first. **That gap has since been closed** — the `/execute` handover run
+> (`phase-7-ledger-handover`, 2026-10-10) derived plan §4b's Phases 8–15 and their gates, added the
+> audit traceability table, and reconciled *this* section against the `/execute` skeleton (ids,
+> streams, per-task fields, gate criteria). Statuses remain what the implementing run's own checks
+> recorded — `/do-task` has not re-run them — and a task is `DONE` only where the evidence below is
+> recorded. `T-7.WEB.01` and `T-7.X.GATE` are `TODO` because that evidence is not there.
+>
+> Derived from plan §4b Phase 7 and §11 findings 1, 2, 11, 12, 29 of the 2026-10-10 audit: **no authentication whatsoever** (identity was two request headers, so any caller could claim any user and any company), **no user/role administration through the API**, and **no company provisioning** (a new tenant meant running the install CLI by hand against the database).
+>
+> Streams: `AUTH` (the door), `ADMIN` (administration), `INST` (the install), `SEC` (the review), `WEB` (the frontend session shell), `X` (the gate).
+
+### Stream: `AUTH` — the door (§4b Phase 7, §9 variables)
+
+#### Task ID: T-7.AUTH.01
+- **Title**: Users, credentials and the installation-level identity schema
+- **Description**: The person, the credential and the membership as rows: `app_user` (Argon2id hash, failure count, lockout, status), `user_membership` (which companies a person may act in), and the schema decision that keeps them out of the company dimension — a session has to be read *before* the company it names is known.
+- **Plan source**: §4b Phase 7 deliverable `app/identity.py`; §4b principles 1 and 6; §9 `password_min_length`, `lockout_threshold`, `lockout_window_minutes`, `argon2_parameters`.
+- **Scope**: The tables, the password policy, Argon2id hashing, the failure counter and the lockout. **Not** the session (T-7.AUTH.02) and not the second factor (T-7.AUTH.03).
+- **Variables / Config**: `password_min_length` (12), `lockout_threshold` (5), `lockout_window_minutes` (15), Argon2id parameters (time 3, memory 64 MiB, parallelism 4), read from the environment like every other setting in this tree until T-8.CFG.01 declares them in one place.
+- **Dependencies**: none. **Parallel with**: T-7.AUTH.02 (different tables, same module).
+- **Acceptance Criteria**: a password is never stored in clear and is always an Argon2id hash; a login is unique and lower-cased, and is the **subject** the rest of the platform already keys roles on; a short or refused password is rejected before hashing; a refused sign-in counts, and the credential locks at the threshold for the window; a locked credential refuses the right password too; rehashing after a parameter change happens on the next successful sign-in rather than locking anybody out.
+- **Evidence**: `ERPbackend/app/identity.py` — `AppUser`, `UserMembership`, `UserTotp`, `UserRecoveryCode`, `UserSession`, with `create_user`, `set_password`, `verify_password`, `check_password_policy`, `add_membership`, `memberships_for`, `change_password`'s revocation helper and `purge_expired_sessions` (scheduled by T-8.WORK.01). The schema decision is declared where the guard reads it: `app/db.py`'s new `UNSCOPED_TABLES` (with a reason per table) is skipped by the scoping DDL, and `app/audit.py`'s `_audited` skips the same names, because the trail files every row under a company (`audit_log.company_id` is NOT NULL) and an installation-level identity row has none to file under. `tests/check_audit_coverage.py` holds the same list as its exclusions, so a table cannot be added to either without a reason. `argon2-cffi` joins `requirements.in`, and both locks were regenerated (`argon2-cffi==25.1.0`).
+  - **the password is an Argon2id hash, never the typed password** — `check_auth.py` reads the row back after installing with a password: 97 characters, `$argon2id$…`, and equal to neither the password nor its plain digest.
+  - **a short password is refused before anything is hashed** — `identity.check_password_policy("short")` → `WeakPasswordError: a password is at least 12 characters`; through the API the same attempt is `422`.
+  - **a refused sign-in is counted, and the credential locks** — one wrong password leaves `failed_attempts = 1`; three (the variable set to 3 for the check) leave `locked_until` set, and the **right** password is then refused with the same 401.
+  - **`tests/check_audit_coverage.py`** — green: **119 tables over 57 modules, 110 audited, 9 excluded with a reason and no table unaccounted for** (the five identity tables are the new exclusions, each stating why).
+  - **`tests/check_bootstrap.py`** — green: the install creates all **143** tables the 70 model modules declare.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+#### Task ID: T-7.AUTH.02
+- **Title**: The session boundary — headers out, a verified session in
+- **Description**: Replace the two request headers the API's own docstring recorded as a placeholder ("any caller may claim any actor") with a server-side session delivered as an `HttpOnly` cookie: `app/auth.py` (cookie policy, three refusals, `current_identity`), `context()` rewritten in `app/api.py`, and the cookie's `Secure` flag decided by the forwarded scheme so the reverse proxy of T-9.EDGE.01 does not break it.
+- **Plan source**: §4b Phase 7 `app/auth.py` and `context()` rewritten; principles 1 and 8; findings 1 and 2.
+- **Scope**: The boundary and the migration of every check that authenticated by header. **Not** the login/logout routes (T-7.AUTH.04) and not the second factor (T-7.AUTH.03), which the boundary already refuses for.
+- **Variables / Config**: `session_ttl_minutes` (720), `session_idle_timeout_minutes` (60).
+- **Dependencies**: T-7.AUTH.01.
+- **Acceptance Criteria**: no route reads `X-Actor` or `X-Company-Id`, and neither appears in the published contract; a request with no cookie, an unknown token, an expired session, an idle session or a disabled user answers `401 unauthenticated` in the one error shape; a caller holding a valid session cannot be moved to another company by any header or body field; the actor recorded in the trail is the session's subject; every existing check still proves the rule it was written for.
+- **Evidence**: `ERPbackend/app/auth.py` (`SESSION_COOKIE`, `NotAuthenticated`, `MfaPending`, `SuspendedCompany`, `current_identity`, `set_session_cookie`, `clear_session_cookie`), `app/api.py` (`context`, `pending_context`, `suspended_context`, `_over_https`), and the handler block that answers each refusal in the one shape. The header path is **gone**, not disabled: `grep -rn "X-Actor\|X-Company-Id" app/` finds nothing.
+  - **a header claims nothing** — `check_auth.py` calls `/companies/current` with no cookie and with both old headers set: `401 unauthenticated` both times.
+  - **the session names the company** — the same check signs in and reads `SMOKE`/`AUTH`, and switching needs a membership (`404 unknown_company` for a company the caller does not work in, indistinguishable from one that does not exist so a caller cannot feel out installed tenants).
+  - **18 checks migrated, each to the session it already meant** — `tests/identity.py` (new, not a check: it gives an actor a user, a credential, a membership and a real session, and returns the cookie) plus the sites in `check_api_conventions`, `check_backend_image`, `check_bootstrap`, `check_campaigns`, `check_credit_check`, `check_dashboard`, `check_fulfilment`, `check_org_chart`, `check_phase2_exit`, `check_pipeline`, `check_pos_offline`, `check_pos_sale`, `check_pos_shifts`, `check_pos_tender`, `check_pricing`, `check_quotations`, `check_rfq_responses`, `check_security`, `check_security_review`, `check_supplier_portal`. `check_backend_image` now logs in **inside the container** and uses the cookie, so the image check proves the container authenticates rather than merely answering.
+  - **the header case became a session case, not a deleted assertion** — `check_api_conventions`' `invalid_company` case (a bad `X-Company-Id`) is now `unauthenticated` (a forged cookie), and still asserts the one error shape: `401 unauthenticated: this endpoint requires a signed-in session`.
+  - **`tests/check_api_conventions.py`** — green: **543 documented fields typed, optional fields nullable**; the served contract equals `contract/v1/openapi.json` after republication (`tools/publish_contract.py`).
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+#### Task ID: T-7.AUTH.03
+- **Title**: The second factor — TOTP and recovery codes
+- **Description**: TOTP (RFC 6238, SHA-1, 6 digits, 30-second step, ±1 step of drift) with enrolment, confirmation and recovery codes stored hashed and spendable exactly once.
+- **Plan source**: §4b Phase 7 deliverable `MfaSecret`, and the exit criterion "MFA is enforced for the administrator role; a reused code is refused"; §9 `mfa_required_roles`, `recovery_code_count`.
+- **Scope**: Implementation across `app/identity.py` (the factor) and `app/api.py` (the routes). **A session that owes a factor may reach the MFA routes and nothing else.**
+- **Variables / Config**: `mfa_required_roles` (`administrator`), `recovery_code_count` (10).
+- **Dependencies**: T-7.AUTH.01, T-7.AUTH.02.
+- **Acceptance Criteria**: a user who has enrolled one owes it at every sign-in; a session owing one is `401 mfa_required` on every route but the MFA routes; a wrong code is refused; a right code finishes the sign-in; a recovery code works exactly once; an administrator role cannot be assigned to somebody without a confirmed factor.
+- **Evidence**: `app/identity.py` (`enrol_totp`, `confirm_totp`, `verify_totp`, `totp_now`, `issue_recovery_codes`, `redeem_recovery_code`, `requires_mfa`, `mfa_required_for_role`, `confirm_session_mfa`), `app/api.py` (`/auth/mfa/enrol`, `/auth/mfa/confirm`, `/auth/mfa/verify`), `tests/check_auth.py` claim 7.
+  - **the next sign-in stops at the factor** — `200 {"mfa_pending": true}`, then `401 mfa_required` on `/admin/users`, then a wrong code `401`, then the right code `200 {"mfa_pending": false}`.
+  - **10 recovery codes, each spendable once** — the first is accepted, the second use of the same code is `401`.
+  - **the role side is enforced where access is granted** — `POST /admin/assignments` with `administrator` for a user who has enrolled nothing is `422 second_factor_required`, and succeeds once they have (claim 8).
+  - **The ceiling this id states rather than hides**: a code is accepted for its whole 30-second step, so the same code twice inside one step is accepted twice. Replay protection within a step needs the step recorded per user; nothing needs it yet, and it is written in `app/identity.py` and in the check's docstring.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+#### Task ID: T-7.AUTH.04
+- **Title**: The session routes — sign in, sign out, change your own password, switch company
+- **Description**: The five routes that are the door itself, each carrying no capability because the permission they ask for is "hold a valid session": `POST /auth/login` (public by necessity), `GET /auth/session`, `POST /auth/logout`, `POST /auth/password`, `POST /auth/company`.
+- **Plan source**: §4b Phase 7 exit criteria 1, 2, 5, 6; findings 29 and 30.
+- **Scope**: The routes and the shapes they publish (`SessionOut`). **Not** password reset by email (needs T-8.DELIVERY.01's transport — it lands there, as plan §2.1's OUT states).
+- **Variables / Config**: none beyond T-7.AUTH.01's.
+- **Dependencies**: T-7.AUTH.01, T-7.AUTH.02.
+- **Acceptance Criteria**: an unknown login and a wrong password answer identically, so logins cannot be enumerated; signing out revokes the **row**, so a token copied beforehand is dead; changing your own password requires the current one, revokes the other sessions and keeps you signed in; the session payload names the company code and the capabilities held, and no field of it can name a different company.
+- **Evidence**: `app/api.py` (`sign_in`, `read_session`, `sign_out`, `change_password`, `switch_company`, `_session_out`), `tests/check_auth.py` claims 2, 3, 5, 6, 10.
+  - **both refusals are one answer** — `401 unauthenticated` / `those credentials were not accepted` for an unknown login and for a wrong password, byte for byte the same body, with the failure counted behind it.
+  - **sign-out is real** — the cookie is captured before signing out and replayed after: `401`, and the revoked row is on the table.
+  - **a password change keeps you in and puts others out** — `204`, the changer's own session still serves `/companies/current`, a wrong current password is `401`, and the other sessions are revoked.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+### Stream: `ADMIN` — administration (§4b Phase 7, finding 11 and 12)
+
+#### Task ID: T-7.ADMIN.01
+- **Title**: Users as an API: list, create, set a password, disable
+- **Description**: `GET/POST /admin/users`, `POST /admin/users/{login}/password`, `POST /admin/users/{login}/status`, guarded by a new `admin.users` capability — so an administrator adds a person without SQL, which the install CLI was the only way to do before.
+- **Plan source**: §4b Phase 7 exit criteria 4; finding 11.
+- **Scope**: The four routes and their payloads. **Not** self-service signup, and not an approval workflow over user creation.
+- **Variables / Config**: none.
+- **Dependencies**: T-7.AUTH.01, T-7.AUTH.02.
+- **Acceptance Criteria**: only members of the acting company are listed and administered (a user of another company is `404`, indistinguishable from one that does not exist); creating a user with no password is possible and such a user cannot sign in; setting a password revokes that user's live sessions; disabling does the same; every route refuses a caller without `admin.users`.
+- **Evidence**: `app/api.py` (`list_users`, `create_user_route`, `set_user_password`, `set_user_status`, `_member_of`, `_user_out`), exercises in `tests/check_auth.py` claim 8 and `ERPbackend/app/identity.py` (`set_status`, `revoke_sessions`).
+  - **a user is created through the API and lands in this company only** — `201` with `roles == []` and `companies == ["AUTH"]`.
+  - **the isolation is the membership, not the table** — a user of another company answers `404 unknown_user` (identity rows are installation-level, so the membership check is what isolates them).
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+#### Task ID: T-7.ADMIN.02
+- **Title**: Roles, capability grants, field restrictions and assignments as an API
+- **Description**: `GET/POST /admin/roles`, `POST /admin/roles/{code}/grants`, `POST /admin/roles/{code}/restrictions`, `POST /admin/assignments`, guarded by a new `admin.roles` capability — the access matrix becomes administrable rather than CLI-only.
+- **Plan source**: §4b Phase 7 exit criteria 4; finding 11.
+- **Scope**: The five routes over `app/security.py`'s existing data model. **No change to the authorisation model itself** — capabilities, restrictions and `require(...)` are untouched.
+- **Variables / Config**: `mfa_required_roles` (read at the assignment route).
+- **Dependencies**: T-7.ADMIN.01, T-7.AUTH.03.
+- **Acceptance Criteria**: a role is defined with no grants and holds nothing until granted; a field restriction is written through the API; a role change takes effect on the next request with nothing restarted; a role the variable names cannot be assigned to somebody without a confirmed second factor; every route refuses a caller without `admin.roles`.
+- **Evidence**: `app/api.py` (`list_roles`, `create_role`, `grant_capabilities`, `restrict_field`, `assign_role_route`, `_role_in_company`), `tests/check_auth.py` claims 8 and 9.
+  - **the new role is live on the next request** — the clerk signs in holding exactly `['company.read', 'journal.read']` and is refused `403` on `/admin/roles` naming what they hold, with no restart and no deploy.
+  - **the refusal is driven, not assumed** — `check_security_review.py` sweeps all **80** method/route pairs and requires a `require(...)` naming a capability in every one that is not public or the door.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+#### Task ID: T-7.ADMIN.03
+- **Title**: Company provisioning and suspension through the API
+- **Description**: `POST /companies` (the company, its chart of accounts from the market pack, and the creator as its administrator) and `POST /companies/{code}/status` (suspend/reinstate), guarded by the existing `company.configure` capability.
+- **Plan source**: §4b Phase 7 exit criteria 5; finding 12.
+- **Scope**: The two routes and the `company.status` column. **Not** platform-level administration: recorded as a ceiling in the route's own docstring — every administration route is scoped to the actor's own company, so the **first** company still comes from the install command.
+- **Variables / Config**: `fiscal_year_start_month` (required by the pack, per company).
+- **Dependencies**: T-7.AUTH.01, T-7.AUTH.02, T-7.AUTH.03.
+- **Acceptance Criteria**: a company is created with its pack's chart of accounts and its creator able to administer it; a suspended company refuses sign-ins **and** its live sessions, while the reinstatement route stays reachable (or suspension is a one-way door); suspension is refused for an unknown status and leaves every row it owns untouched.
+- **Evidence**: `app/api.py` (`create_company_route`, `set_company_status_route`), `app/company.py` (`COMPANY_STATUSES`, the `status` column and its check constraint, `set_company_status`, `UnknownCompanyStatus`), `app/identity.py` (`CompanySuspended`, `_choose_company` refusing a suspended company by name and skipping one when it is merely first alphabetically), `tests/check_auth.py` claims 6 and 11.
+  - **provisioning produces a company its creator can administer** — `201`, and the creator's session lists `['AUTH', 'SECOND']` after the switch.
+  - **suspension is refused at both ends, and reversible** — a session already inside the company gets `403 company_suspended`; a sign-in naming it gets `403` at the door; the reinstatement route answers `200 active` and the session serves again. Both halves were found while writing the check: the first version let a suspended company hand out a session, and the second locked the operator out of reinstating it. Both fixed in this id's diff.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+### Stream: `INST` — the install (§4b Phase 7, finding 11)
+
+#### Task ID: T-7.INST.01
+- **Title**: The install creates an administrator that can actually sign in
+- **Description**: `python -m app.bootstrap` now creates the **identity** behind the administrator it names — the user row, the membership and (with `--admin-password` or `ERP_ADMIN_PASSWORD`) a credential — instead of assigning a role to a subject no sign-in could ever produce.
+- **Plan source**: §4b Phase 7 exit criterion 1; the ceiling `app/bootstrap.py` itself recorded ("there is no route that manages roles, so an install without it answers 403 to everything with no way in").
+- **Scope**: `app/bootstrap.py` only. **Not** a migration tool (T-8.MIG.01 owns that), and the install CLI stays the only way to create the *first* company.
+- **Variables / Config**: `--admin-password`, `ERP_ADMIN_PASSWORD`.
+- **Dependencies**: T-7.AUTH.01.
+- **Acceptance Criteria**: the install produces an administrator with a credential and a membership in the company it just created; naming a subject without a password says so on stderr rather than leaving an account nobody can use; a second install of the same company is still refused and writes nothing; the pack still refuses to guess an unconfirmed fiscal-year start.
+- **Evidence**: `ERPbackend/app/bootstrap.py` (`grant_administrator` gained the identity, `bootstrap` gained `admin_password`, `main` gained `--admin-password`/`ERP_ADMIN_PASSWORD`, and the module docstring's "not an HTTP route either" paragraph was rewritten because T-7.ADMIN.03 made it false).
+  - **`tests/check_bootstrap.py`** — green, unchanged in substance: the install created all **143** tables over 70 model modules, **58** accounts from the philippines pack, the administrator holds all **32** capabilities the app declares (covering all **30** the access matrix names), a posting is taken and replayed through the app on the schema the install created, a second install is refused, and an unconfirmed fiscal year start is still refused by the pack.
+  - **the credential is real** — `check_auth.py` signs in as the installed administrator immediately afterwards (`200`, cookie set), and reads the Argon2id hash back from the row.
+- **Estimated Effort**: S
+- **Owner Role**: Backend Engineer
+- **Status**: DONE
+
+### Stream: `SEC` — the review (§4b Phase 7, finding 2)
+
+#### Task ID: T-7.SEC.01
+- **Title**: The access matrix, the route sweep and the findings brought up to date
+- **Description**: `SECURITY-REVIEW.md`'s matrix gains the 19 new method/route pairs; the sweep gains the category it was missing — the routes that carry no capability because they **are** the door — and **drives** every one of them with no cookie and with a forged cookie; the finding that recorded header identity as an accepted risk is closed as remediated.
+- **Plan source**: §4b Phase 7 exit criterion 2 and principle 5; the review is Phase 6's `T-6.HARD.02`, whose check is what holds it.
+- **Scope**: `SECURITY-REVIEW.md`, `tests/check_security_review.py`. **No** weakening: the new category is driven, not merely named.
+- **Variables / Config**: none.
+- **Dependencies**: T-7.AUTH.02, T-7.ADMIN.01, T-7.ADMIN.02, T-7.ADMIN.03.
+- **Acceptance Criteria**: every route the app serves is either guarded, named with the reason it is public, or named as the door **and driven with nothing**; the recorded matrix equals the app's own; the sign-in route is public with its reason and no other door route is public; the review's findings still each state a disposition with a reason.
+- **Evidence**: `ERPbackend/tests/check_security_review.py` (`SESSION_ONLY` as a new named category; the `unguarded` filter; the new item 8 that drives each one with no cookie and with a forged cookie; the docstring's list renumbered to nine) and `ERPbackend/SECURITY-REVIEW.md` (19 rows added, the empty-capability paragraph rewritten, finding 2 remediated, and "What this review does not cover" amended: the session mechanism is now decided, the *transport* is still T-9.EDGE.01's).
+  - **`tests/check_security_review.py` — all assertions green** — **80** method/route pairs swept, **30** capabilities in use; the matrix records all 80 with the same capability; **7** public routes named with their reason; **7** door routes driven with no cookie and with a forged cookie, every one `401 unauthenticated`; **9** findings, each stating `remediated` or `accepted risk` with its reason.
+- **Estimated Effort**: S
+- **Owner Role**: Security Engineer
+- **Status**: DONE
+
+### Stream: `WEB` — the frontend session shell (§4b Phase 7, findings 28 and 29 — **not started**)
+
+#### Task ID: T-7.WEB.01
+- **Title**: The shell signs in, survives a reload and signs out
+- **Description**: `ERPfrontend/app/login/page.tsx` and `lib/session.ts`: the sign-in form, the MFA prompt, session expiry, sign-out, the company switcher, and `lib/api.ts` forwarding the session cookie instead of reading `COMPANY_ID`/`ACTOR` from the environment — the file's own docstring says "only this file changes when it does".
+- **Plan source**: §4b Phase 7 deliverable (frontend half) and exit criterion "the frontend signs in, survives a reload and signs out"; plan §11 finding 29.
+- **Scope**: the frontend repository only.
+- **Variables / Config**: none.
+- **Dependencies**: T-7.AUTH.02, T-7.AUTH.03, T-7.AUTH.04.
+- **Acceptance Criteria**: signing in sets a session the shell carries across a reload; an expired or revoked session lands on the sign-in screen with the reason shown; an MFA-owing session is asked for its code and reaches nothing else; signing out returns to the sign-in screen. The frontend repository's own `npm run check` stays green.
+- **Evidence**: **Not started.** The contract the shell builds against has been republished (`contract/v1/openapi.json`, with `POST /auth/login` and the session payload), so this id is unblocked; nothing in `ERPfrontend/` has been changed by Phase 7.
+  - **Expected proof when it lands** (recorded so the id can be dispatched on evidence and nothing more): `ERPfrontend`'s own `npm run check` green — the same command `T-6.X.GATE` already runs against the sibling checkout — **plus** the sign-in flow itself: sign in → reload carries the session → sign out returns to the sign-in screen, driven against the real API. A separate agent is implementing this id now; **the status stays `TODO` in this ledger until `/do-task` records that evidence**, and no part of this task's evidence is claimed by Phase 7's other tasks.
+- **Estimated Effort**: M
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-7.X.GATE
+- **Title**: Phase 7's exit criteria, verified
+- **Description**: Restate plan §4b Phase 7's exit criteria as checks and run them.
+- **Plan source**: §4b Phase 7 Exit Criteria (seven bullets); §6's Identity and Isolation metrics; §11 findings 1, 2, 11, 12, 29.
+- **Scope**: Verification only — the gate runs checks, it adds no feature and repairs no finding. **The frontend criterion is the frontend repository's own check**, as `T-6.X.GATE` already handles a sibling half.
+- **Variables / Config**: `mfa_required_roles`, `lockout_threshold` / `lockout_window_minutes`, `session_ttl_minutes` / `session_idle_timeout_minutes`, `recovery_code_count`, `password_min_length`.
+- **Dependencies**: T-7.AUTH.01, T-7.AUTH.02, T-7.AUTH.03, T-7.AUTH.04, T-7.ADMIN.01, T-7.ADMIN.02, T-7.ADMIN.03, T-7.INST.01, T-7.SEC.01 — and **T-7.WEB.01**, without which the gate cannot close.
+- **Acceptance Criteria**: the plan's seven exit criteria, each verified as a check —
+  - Every route except health, login, the contract and the docs answers `401` without a valid session — asserted by a check that enumerates the route table
+  - No route reads `X-Actor` or `X-Company-Id`, and neither appears in the published contract
+  - A session bound to company A receives no row and no `200` for company B on any route
+  - An administrator creates a user and grants a role through the API; the user's next request is permitted, with no deploy and no SQL
+  - A company is created and suspended through the API; a suspended company's users are refused
+  - MFA is enforced for the administrator role and a reused code is refused; lockout after N failures in the window is in the audit trail
+  - The frontend signs in, survives a reload, and signs out
+- **Evidence**: **Not met yet — the gate is deliberately left open rather than claimed.** Held so far, from the runs above: every route outside `PUBLIC` and the door answers `401` without a valid session (swept, 80 pairs); no route reads the two old headers (`grep` over `app/`); a session bound to one company is served nothing of another's (`check_auth.py` claim 6, `check_security_review.py` claim 4); an administrator creates a user and grants a role through the API with no SQL and no deploy; a company is created and suspended through the API and a suspended company is refused at the door and on its live sessions; MFA is enforced for the administrator role and a spent recovery code is refused; the lockout is recorded and survives the request; the frontend criterion is **not** met (T-7.WEB.01).
+- **Estimated Effort**: S
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+---
+
+## Phase 8 — Platform Operations (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Every task is `TODO`; statuses belong to `/do-task`. Phase 8's dependencies are **none** (plan §4b states it runs parallel with Phase 7), so its tasks are selectable now.
+
+### Stream: `MIG` — schema evolution (§4b Phase 8, finding 3)
+
+#### Task ID: T-8.MIG.01
+- **Title**: Alembic owns the schema — baseline, upgrade from empty, and no drift
+- **Description**: Add `alembic.ini` and `migrations/` with a baseline revision that reproduces the schema `create_all` builds today, run `alembic upgrade head` against an empty database, prove a second `upgrade head` is a no-op, and make a new table without a migration fail the build.
+- **Plan source**: §4b Phase 8 deliverables (`alembic.ini`, `migrations/`, a baseline) and exit criteria 1–2; principle 2.
+- **Scope**: The migration tree, its environment and its baseline. **Not** the RLS/scoping DDL (T-8.MIG.02) and not the install CLI (T-8.MIG.02).
+- **Variables / Config**: `DATABASE_URL` (required).
+- **Dependencies**: none.
+- **Acceptance Criteria**: `alembic upgrade head` on an empty database succeeds; the resulting schema matches the `create_all` schema table by table; `alembic check` reports 0 drift; a second `upgrade head` changes nothing; the build fails when a model arrives with no migration (principle 2 — §6's Schema metric).
+- **Evidence**: `ERPbackend/alembic.ini`, `ERPbackend/migrations/` and the check that compares the migrated schema with a `create_all` schema table by table and runs `alembic check`.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer / DBA
+- **Status**: TODO
+
+#### Task ID: T-8.MIG.02
+- **Title**: Row-level scoping applied by the migration, and the install runs on top of it
+- **Description**: Invoke the RLS/scoping half of `app/db.py` from the migration environment so a migrated schema is company-scoped exactly like a `create_all` one, and prove `python -m app.bootstrap` runs idempotently on the migrated schema.
+- **Plan source**: §4b Phase 8 deliverables (the RLS half of `app/db.py` invoked from the migration environment) and exit criteria 1–2; principle 2.
+- **Scope**: The scoping DDL's invocation from Alembic and the install CLI's behaviour on a migrated schema. **Not** the baseline itself (T-8.MIG.01), and **no change** to the RLS mechanism or the audit trail (plan §8's no-rewrite non-goal).
+- **Variables / Config**: `DATABASE_URL` (required).
+- **Dependencies**: T-8.MIG.01.
+- **Acceptance Criteria**: the migrated schema's RLS policies match the `create_all` schema table by table; a migrated database isolates one company from another exactly as a `create_all` one does; the install CLI completes idempotently on top of migrations and a second run is refused and writes nothing.
+- **Evidence**: `ERPbackend/app/db.py`'s scoping entry point wired into `migrations/env.py`, and the check that runs it and then exercises cross-company isolation and the install.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer / DBA
+- **Status**: TODO
+
+### Stream: `CFG` — configuration read once and validated (§4b Phase 8, finding 8)
+
+#### Task ID: T-8.CFG.01
+- **Title**: Every setting declared in one place and validated at startup
+- **Description**: `app/config.py` declares every setting the platform reads — including the §9 variables Phases 7–12 introduce — validates types and allowed values once at import, and refuses to start on a missing or malformed required variable, naming it.
+- **Plan source**: §4b Phase 8 deliverable `app/config.py` (every setting declared and validated at startup) and exit criterion 9; principle 6.
+- **Scope**: The configuration module and the call sites that read the environment today (`DATABASE_URL` read at first request is the finding). **Not** the values themselves — undecided ones carry the §9 placeholder and are refined by the phase that adopts them.
+- **Variables / Config**: every row of the Variables tables (§9 plus this ledger's), read once; `DATABASE_URL` is the required one named in the exit criterion.
+- **Dependencies**: none.
+- **Acceptance Criteria**: a missing or malformed `DATABASE_URL` fails at startup with the variable named; an out-of-range or misspelled value fails at startup rather than per request; no module reads `os.environ` for a setting outside `app/config.py`; settings are read once, not per request (principle 6).
+- **Evidence**: `ERPbackend/app/config.py` and the check that starts the app with a missing/malformed variable and asserts the named refusal, plus a grep proving no stray environment reads.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `WORK` — queue, worker and schedules (§4b Phase 8, findings 4 and 26)
+
+#### Task ID: T-8.WORK.01
+- **Title**: `pgqueuer` behind a queue module, a worker, and a worker service in the stack
+- **Description**: `app/queue.py` (the queue library behind one interface), `app/worker.py` (the worker entry point), the `pgqueuer` pin in the dependency manifests, and a `worker` service in `docker-compose.yml` so the declared work has somewhere to run.
+- **Plan source**: §4b Phase 8 deliverables (`app/queue.py`, `app/worker.py`, `app/schedule.py` on `pgqueuer` with a worker service in `docker-compose.yml`); plan §8's `queue_library` decided value; §10 (the biometric pull is finally scheduled).
+- **Scope**: The queue abstraction, the worker process and its container. **Not** the individual schedules (T-8.WORK.02) and not the retry/idempotency contract's proof (T-8.WORK.02).
+- **Variables / Config**: `queue_library` (`pgqueuer`), `worker_concurrency` (4 *[proposed]*); the reporting runner, dunning, recurring billing, offline POS sync and biometric pull are the existing callers.
+- **Dependencies**: T-8.CFG.01, T-8.MIG.02.
+- **Acceptance Criteria**: the worker container is in the stack and starts against the migrated schema; a job enqueued produces exactly one effect when a run is processed; the library is `pgqueuer` and no Redis is introduced (plan §8 non-goal).
+- **Evidence**: `ERPbackend/app/queue.py`, `ERPbackend/app/worker.py`, the `worker` service in `ERPbackend/docker-compose.yml`, the refreshed dependency locks, and the check that brings the stack up and observes a job processed.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer / Platform Engineer
+- **Status**: TODO
+
+#### Task ID: T-8.WORK.02
+- **Title**: Every unit of background work scheduled, idempotent, recorded and retryable
+- **Description**: `app/schedule.py` declares every scheduled unit — including the session purge T-7.AUTH.01 provides (`purge_expired_sessions`) and the biometric pull §10 says is finally scheduled — each writes a `JobRun` (job, scheduled-for, started, finished, status, attempt, error, correlation id), a duplicate run is safe and visible as a duplicate, and a failing job retries and records the attempt and its error.
+- **Plan source**: §4b Phase 8 deliverable `app/schedule.py` and exit criteria 3–4; §4b principle 3; §5's `JobRun` entity; §10's biometric external.
+- **Scope**: The schedule declarations, the run record and the retry contract. **Not** the worker container (T-8.WORK.01) and not the delivery retry (T-8.DELIVERY.01).
+- **Variables / Config**: `delivery_max_attempts` / `delivery_backoff_minutes` are the delivery analogue; the schedules themselves carry the existing cadences (`fx_sync_schedule`, `report_schedule`, fingerprint of the payroll).
+- **Dependencies**: T-8.WORK.01.
+- **Acceptance Criteria**: every schedule declared in `app/schedule.py` has been observed to fire in a check (100 % of declared schedules — §6's Background work metric); a job run twice produces one effect and the second run is visible as such; a failing job retries and records the attempt and its error; 100 % of runs are recorded with an outcome.
+- **Evidence**: `ERPbackend/app/schedule.py`, the `JobRun` model and its write path, and the check that fires each declared schedule and drives the duplicate and failing cases.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `OBS` — logs, health, error hygiene and metrics (§4b Phase 8, findings 5, 7 and 27)
+
+#### Task ID: T-8.OBS.01
+- **Title**: One structured log line per request, carrying the correlation id
+- **Description**: `app/observability.py` configures structured logging (`log_format`, `log_level`) and a correlation id per request, and `app/api.py` writes one request log line per request; a credential never appears in a line.
+- **Plan source**: §4b Phase 8 deliverables (`app/observability.py`, the request log) and exit criterion 7; §4b principle 4; §3's Observability row.
+- **Scope**: Logging configuration, the correlation id and the request log. **Not** the health endpoints (T-8.OBS.02), not the error shape (T-8.OBS.03) and not the optional error-tracking sink (OQ-4).
+- **Variables / Config**: `log_level` (`info`), `log_format` (`json`), `metrics_enabled` (`true`), `error_tracking_dsn` (unset — OQ-4).
+- **Dependencies**: T-8.CFG.01.
+- **Acceptance Criteria**: every request produces one structured log line carrying the correlation id (100 % — §6's Observability metric); the line is JSON by default; no credential, session token or password appears in any line; the correlation id is the one in the error body when a request fails.
+- **Evidence**: `ERPbackend/app/observability.py`, the request-log middleware in `ERPbackend/app/api.py`, and the check that drives requests and scans the emitted lines for the id and for a credential.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+#### Task ID: T-8.OBS.02
+- **Title**: Liveness and readiness split, with a real readiness answer
+- **Description**: Split health into liveness (the process is up, always `200`) and readiness (dependencies reachable), with readiness answering `503` within `readiness_timeout_seconds` when the database is stopped and `200` when it returns.
+- **Plan source**: §4b Phase 8 deliverable (`app/api.py` health split into liveness and readiness) and exit criterion 5; §6's Observability metric.
+- **Scope**: The two health routes and the readiness probe's dependency check. **Not** the `/metrics` endpoint (T-8.OBS.03) and not the TLS health signal (T-9.EDGE.01).
+- **Variables / Config**: `readiness_timeout_seconds` (3 *[proposed]*).
+- **Dependencies**: T-8.CFG.01.
+- **Acceptance Criteria**: readiness answers `503` within the timeout when the database is stopped and `200` when it returns (within 5 s — §6); liveness stays `200` throughout; the two routes are the only health routes, and the contract names both.
+- **Evidence**: the two routes in `ERPbackend/app/api.py` and the check that stops and restarts the database and times both answers.
+- **Estimated Effort**: S
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+#### Task ID: T-8.OBS.03
+- **Title**: `500` error hygiene and the `/metrics` surface
+- **Description**: A forced unhandled exception answers `500` with `internal_error`, a correlation id and the one documented error shape — no exception class, message, path or SQL — and `metrics_enabled` exposes `/metrics` with the counters an operator needs (including failures).
+- **Plan source**: §4b Phase 8 deliverables (`500` error hygiene, `/metrics`) and exit criterion 6; §4b principle 4; §6's Observability metric.
+- **Scope**: The exception handler, the error shape and the metrics surface. **Not** the request log (T-8.OBS.01) and not the optional external sink (OQ-4).
+- **Variables / Config**: `metrics_enabled` (`true`).
+- **Dependencies**: T-8.OBS.01.
+- **Acceptance Criteria**: a forced unhandled exception answers `500` with `internal_error` and a correlation id, and no exception class, message, path or SQL appears in the body (0 responses contain an exception class name or message — §6); the failure increments a counter visible on `/metrics`; `/metrics` is reachable only as the plan intends and is not a public data leak.
+- **Evidence**: the exception handler in `ERPbackend/app/api.py`, the `/metrics` route, and the check that forces an exception and asserts the body and the counter.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `DELIVERY` — transports and delivery records (§4b Phase 8, finding 6)
+
+#### Task ID: T-8.DELIVERY.01
+- **Title**: Transports registered from configuration, one `delivery` row per attempt
+- **Description**: Register the outbound transports (SMTP, the SMS gateway) from configuration at startup, write a `Delivery` row per attempt (channel, destination, payload reference, attempt, status, next attempt), retry to `delivery_max_attempts` with backoff, and record an unconfigured transport as an attempt rather than failing the request — the transport T-7.AUTH.04's password reset by email needs.
+- **Plan source**: §4b Phase 8 deliverables (transports registered from configuration with a `delivery` row per attempt) and exit criterion 8; §5's `Delivery` entity; §10's SMTP and SMS externals; §6's Delivery metric.
+- **Scope**: The transport registry, the delivery record and the retry contract. **Not** the email templates of any module, and not the scheduling of the sends (T-8.WORK.02 owns scheduled work).
+- **Variables / Config**: `smtp_host` / `smtp_port` / `smtp_user` / `smtp_password` / `smtp_from` / `smtp_starttls` (required for delivery — OQ-11), `sms_provider` (unset — OQ-11), `delivery_max_attempts` / `delivery_backoff_minutes` (5 / exponential to 60 *[proposed]*).
+- **Dependencies**: T-8.CFG.01, T-8.WORK.01.
+- **Acceptance Criteria**: with SMTP configured a delivery reaches the sink and ≥ 99 % succeed over a 100-message run (§6); without it the attempt is recorded and the request is never a `500`; 100 % of failures carry an attempt count; a delivery is never lost silently (principle 4).
+- **Evidence**: `ERPbackend/app/delivery*.py` (or its equivalent module), the `Delivery` model and write path, and the check that runs a 100-message batch against a sink and repeats it with no transport configured.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `OPS` — the operations runbook (§4b Phase 8, finding 27)
+
+#### Task ID: T-8.OPS.01
+- **Title**: `OPERATIONS.md` — how the stack is run, checked and recovered
+- **Description**: Write `OPERATIONS.md`: the services and their containers, the environment each requires, how to run migrations and the install, how to bring the worker up, the health and metrics endpoints, what to look at when a check fails, and the one-volume compose's limits as they stand (the backup story is Phase 9's).
+- **Plan source**: §4b Phase 8 deliverable `OPERATIONS.md`; §4b principle 5 (operational truth is tested, documentation is not evidence).
+- **Scope**: The operator-facing runbook for the Phase 8 stack. **Not** the backup/restore procedure (T-9.BACKUP.02) and not the deploy runbook (T-9.DEPLOY.01).
+- **Variables / Config**: names every variable §9 declares for Phase 8.
+- **Dependencies**: T-8.MIG.02, T-8.CFG.01, T-8.WORK.01, T-8.OBS.02.
+- **Acceptance Criteria**: every command in the runbook has been executed as written against the compose stack; the runbook names the variable each setting requires and states which are required; it claims no behaviour that a check does not hold (principle 5).
+- **Evidence**: `ERPbackend/OPERATIONS.md` and the record of running its commands against the stack the Phase 8 checks bring up.
+- **Estimated Effort**: S
+- **Owner Role**: Platform Engineer
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-8.X.GATE
+- **Title**: Phase 8's exit criteria, verified
+- **Description**: Restate plan §4b Phase 8's nine exit criteria as checks and run them.
+- **Plan source**: §4b Phase 8 Exit Criteria; §6's Schema, Background work, Observability and Delivery metrics.
+- **Scope**: Verification only.
+- **Variables / Config**: `readiness_timeout_seconds`, `delivery_max_attempts`, `log_format`, `metrics_enabled`, `DATABASE_URL`, `queue_library`.
+- **Dependencies**: T-8.MIG.01, T-8.MIG.02, T-8.CFG.01, T-8.WORK.01, T-8.WORK.02, T-8.OBS.01, T-8.OBS.02, T-8.OBS.03, T-8.DELIVERY.01, T-8.OPS.01.
+- **Acceptance Criteria**: the plan's nine exit criteria, each verified as a check —
+  - `alembic upgrade head` on an empty database yields a schema whose RLS policies match the `create_all` schema table by table; `alembic check` reports no drift
+  - A second `upgrade head` is a no-op, and the install CLI runs on top of migrations, idempotently
+  - The worker container is in the stack, and every schedule in `app/schedule.py` has been observed to fire in a check
+  - A job run twice produces one effect; a failing job retries and records the attempt and its error
+  - Readiness answers `503` within the timeout when the database is stopped and `200` when it returns; liveness stays `200` throughout
+  - A forced unhandled exception answers `500` with `internal_error` and a correlation id, and no exception class, message, path or SQL appears in the body
+  - Every request produces one structured log line carrying the correlation id, and a credential never appears in it
+  - With SMTP configured a delivery reaches the sink; without it, the attempt is recorded — never a `500`
+  - A missing or malformed `DATABASE_URL` fails at startup with a named variable
+- **Evidence**: the Phase 8 checks, run as one gate — the migration/RLS comparison and `alembic check`, the install-on-migrations check, the schedule-fire and duplicate/failing-job checks, the readiness/liveness timing check, the forced-exception and log-scan checks, the 100-message delivery check, and the startup-configuration check. Each criterion names the check that holds it, and the gate fails by name when one is missing.
+- **Estimated Effort**: M
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+---
+
+## Phase 9 — Edge, Secrets & Backup (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Dependencies: Phase 8. Every task is `TODO`.
+
+### Stream: `EDGE` — TLS, the proxy, and the rate and size limits (§4b Phase 9, findings 9 and 10)
+
+#### Task ID: T-9.EDGE.01
+- **Title**: Caddy in front — TLS with automatic certificates, and no published backend port
+- **Description**: A `Caddyfile` and a `proxy` service in the compose stack: plain HTTP on the public port redirects to HTTPS with a valid certificate, the certificate is obtained and renewed by ACME, and the backend's port is not published to the host. This is the reverse proxy `T-7.AUTH.02`'s cookie `Secure` flag already anticipates, and the transport `T-7.SEC.01` leaves open.
+- **Plan source**: §4b Phase 9 deliverables (`Caddyfile` and a `proxy` service) and exit criterion 1; §10's ACME/Let's Encrypt external; §6's Edge metric.
+- **Scope**: The proxy service, the certificate configuration and the port exposure. **Not** the rate or size limits (T-9.EDGE.02) and not the deploy jobs (T-9.DEPLOY.01).
+- **Variables / Config**: `tls_domain` / `acme_email` (required — OQ-10).
+- **Dependencies**: T-8.MIG.02, T-8.OBS.02.
+- **Acceptance Criteria**: plain HTTP on the public port redirects to HTTPS with a valid certificate (0 plain-HTTP paths to the application — §6); the backend's port is not published; an ACME failure is a loud health signal, not a silent fallback to HTTP (§10); the session cookie's `Secure` flag works behind the proxy.
+- **Evidence**: `ERPbackend/Caddyfile`, the `proxy` service in `ERPbackend/docker-compose.yml`, and the check that drives HTTP and HTTPS against the running stack and asserts the redirect, the certificate and the unpublished port.
+- **Estimated Effort**: M
+- **Owner Role**: Platform Engineer
+- **Status**: TODO
+
+#### Task ID: T-9.EDGE.02
+- **Title**: Rate limits and request-size limits at the edge
+- **Description**: Enforce `rate_limit_rps` / `rate_limit_burst` and `max_request_bytes` so requests above the rate answer `429` with `Retry-After` and bodies above the limit answer `413`.
+- **Plan source**: §4b Phase 9 exit criterion 2; §6's Edge metric; §9's `rate_limit_rps`, `rate_limit_burst`, `max_request_bytes`.
+- **Scope**: The limiter and the size guard, at the edge. **Not** per-route quotas and not the pagination maximum page size (T-11.PAGE.01).
+- **Variables / Config**: `rate_limit_rps` (20 *[proposed]*), `rate_limit_burst` (40 *[proposed]*), `max_request_bytes` (1 MiB *[proposed]*).
+- **Dependencies**: T-9.EDGE.01.
+- **Acceptance Criteria**: over-rate requests answer `429` with `Retry-After`; over-size bodies answer `413`; a request within both limits is unaffected; the limiter is configured from the variables and refuses to start on an out-of-range value (principle 6).
+- **Evidence**: the limiter/size configuration in `ERPbackend/Caddyfile` (or the app middleware it delegates to) and the check that drives both refusals and a permitted request.
+- **Estimated Effort**: S
+- **Owner Role**: Platform Engineer
+- **Status**: TODO
+
+### Stream: `SECRETS` — secret references and rotation (§4b Phase 9, finding 16)
+
+#### Task ID: T-9.SECRETS.01
+- **Title**: Secrets from the environment, rotatable without a rebuild
+- **Description**: Every secret (database credentials, `field_encryption_key`, SMTP credentials) is read from the environment or a secret store at startup — never a default, never baked into an image or the repository — and each is rotatable by restarting with a new value.
+- **Plan source**: §4b principle 7 (secrets come from the environment, never from a default, and are rotatable without a rebuild); §10's key-material source; §4b Phase 9 deliverable `app/crypto.py` (key custody).
+- **Scope**: The secret-reading path, its validation and the rotation procedure. **Not** the encryption mechanism itself (T-9.CRYPTO.01) and not the TLS certificate custody (T-9.EDGE.01).
+- **Variables / Config**: `field_encryption_key` (or its reference — required, OQ-3), `smtp_password`, `DATABASE_URL`.
+- **Dependencies**: T-8.CFG.01.
+- **Acceptance Criteria**: no secret has a default; a missing required secret fails at startup naming it; no secret appears in the image, the repository or a log line; rotating a secret takes effect on restart with no rebuild.
+- **Evidence**: the secret declarations in `ERPbackend/app/config.py`, a repository/image scan check that finds no secret literal, and the rotation exercise recorded in the check.
+- **Estimated Effort**: M
+- **Owner Role**: Security Engineer
+- **Status**: TODO
+
+### Stream: `CRYPTO` — envelope encryption and PII (§4b Phase 9, finding 20)
+
+#### Task ID: T-9.CRYPTO.01
+- **Title**: Envelope encryption, payroll bank details first
+- **Description**: `app/crypto.py` implements envelope encryption and the payroll bank-account field is the first user: the value is unreadable in a raw table read and readable through the API only to a caller holding the capability that permits it. Key custody follows OQ-3.
+- **Plan source**: §4b Phase 9 deliverable `app/crypto.py` (envelope encryption, payroll bank details first) and exit criterion 3; §6's PII metric; §12 OQ-3.
+- **Scope**: The crypto module, the encrypted column and its decryption at the API boundary. **Not** the key's custody mechanism (T-9.SECRETS.01 provides the reference) and **not** any change to postings — the ledger is not disturbed (plan §8's no-rewrite non-goal).
+- **Variables / Config**: `field_encryption_key` (required — OQ-3).
+- **Dependencies**: T-9.SECRETS.01, T-10.ATT.01 is not required; T-8.MIG.01 is (the column arrives by migration).
+- **Acceptance Criteria**: payroll bank account numbers are unreadable in a raw table read (0 plaintext — §6's PII metric); a permitted caller reads them through the API and a caller without the capability is refused; the ciphertext carries what a rotation needs; no posting or ledger row is altered.
+- **Evidence**: `ERPbackend/app/crypto.py`, the payroll column's migration and its read path, and the check that reads the raw table and drives both API callers.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer / Security Engineer
+- **Status**: TODO
+
+### Stream: `BACKUP` — off-host dumps and the restore drill (§4b Phase 9, findings 24 and 34)
+
+#### Task ID: T-9.BACKUP.01
+- **Title**: Off-host `pg_dump` with retention
+- **Description**: `scripts/backup.sh` dumps the database off the host on `backup_schedule`, applies retention by count and age (`backup_retention_days`), and treats an unreachable target as an alert rather than a silent success.
+- **Plan source**: §4b Phase 9 deliverables (`scripts/backup.sh` … with retention) and exit criterion 4; §8's Backup and recovery row; §10's off-host backup target; §6's Backups metric.
+- **Scope**: The dump, its destination and retention. **Not** the restore rehearsal (T-9.BACKUP.02) and not the compose volume it reads from.
+- **Variables / Config**: `backup_schedule` (daily 02:00 *[proposed]*), `backup_retention_days` (30 *[proposed]*), `rpo_hours` (24 *[proposed]*); the target is OQ-10's.
+- **Dependencies**: T-8.MIG.02.
+- **Acceptance Criteria**: a backup lands off the host (not on the compose volume's host); retention removes old dumps by count and age; an unreachable target is an alert; the schedule delivers RPO ≤ 24 h (§6).
+- **Evidence**: `ERPbackend/scripts/backup.sh`, the scheduling entry, and the check that produces a dump off-host and asserts retention and the alert path.
+- **Estimated Effort**: M
+- **Owner Role**: Platform Engineer
+- **Status**: TODO
+
+#### Task ID: T-9.BACKUP.02
+- **Title**: The timed restore drill, against the ledger gate
+- **Description**: `scripts/restore-drill.sh` restores a backup into a scratch database, runs the ledger-integrity gate, and records the elapsed time against `rto_hours`; the drill is rehearsed quarterly per §8.
+- **Plan source**: §4b Phase 9 deliverables (`scripts/restore-drill.sh`) and exit criterion 4; §8's Backup and recovery row (rehearsed quarterly); §6's Backups and Schema metrics.
+- **Scope**: The restore procedure, its timing and the ledger gate it runs. **Not** the dump (T-9.BACKUP.01) and not a migration-after-restore upgrade (that is Phase 8's `alembic` tree exercised here).
+- **Variables / Config**: `rto_hours` (4 *[proposed]*), `rpo_hours` (24 *[proposed]*).
+- **Dependencies**: T-9.BACKUP.01, T-8.MIG.01.
+- **Acceptance Criteria**: the drill restores a real backup, runs the ledger gate green, and finishes within the recorded RTO (RTO ≤ 4 h — §6); a restore-then-upgrade drill passes (§6's Schema metric); the elapsed time is recorded, not asserted.
+- **Evidence**: `ERPbackend/scripts/restore-drill.sh` and the check that runs the drill and prints the elapsed time and the gate's result.
+- **Estimated Effort**: M
+- **Owner Role**: Platform Engineer / QA
+- **Status**: TODO
+
+### Stream: `DEPLOY` — deploy jobs, rollback, limits and scaling (§4b Phase 9, findings 25 and 33)
+
+#### Task ID: T-9.DEPLOY.01
+- **Title**: Staging and production deploy jobs with a working rollback
+- **Description**: Deploy jobs for staging and production that pull the tagged images (`staging_image_tag` / `production_image_tag`), apply migrations, and can roll back to the previous image tag; the rollback is exercised in the pipeline, not merely described.
+- **Plan source**: §4b Phase 9 deliverables (staging and production deploy jobs with a rollback) and exit criterion 5; §4b principle 5.
+- **Scope**: The deploy and rollback jobs. **Not** building the images (Phase 0's `T-0.CICD.01` / `T-0.CICD.02`) and not the contract publication (T-9.RELEASE.01).
+- **Variables / Config**: `staging_image_tag` / `production_image_tag` (required), `container_registry` (`ghcr.io/paws1234`).
+- **Dependencies**: T-9.EDGE.01, T-8.MIG.01.
+- **Acceptance Criteria**: a deploy rolls back to the previous image tag, exercised in the pipeline (§4b exit criterion 5); a failed deploy leaves the previous release running; the jobs are not reachable without the credentials the registry requires.
+- **Evidence**: the deploy workflow in `ERPbackend/.github/workflows/` and the pipeline run that demonstrates the rollback, recorded in the check or the workflow log.
+- **Estimated Effort**: M
+- **Owner Role**: Platform Engineer / DevOps
+- **Status**: TODO
+
+#### Task ID: T-9.DEPLOY.02
+- **Title**: Compose resource limits and the scaling variables
+- **Description**: Set compose resource limits and wire the scaling variables — `uvicorn_workers`, `db_pool_size` / `db_pool_max_overflow`, `db_statement_timeout_ms` — so a single host's capacity is explicit and a statement that runs away is bounded.
+- **Plan source**: §4b Phase 9 deliverables (compose resource limits and the scaling variables); §9's `uvicorn_workers`, `db_pool_size`, `db_pool_max_overflow`, `db_statement_timeout_ms`; §8's `deployment target` (a single Linux host — no autoscaling, a §8 non-goal).
+- **Scope**: The compose limits and the three scaling settings. **Not** autoscaling or multi-host orchestration (plan §8 non-goals).
+- **Variables / Config**: `uvicorn_workers` (2 *[proposed]*), `db_pool_size` / `db_pool_max_overflow` (5 / 10 *[proposed]*), `db_statement_timeout_ms` (15000 *[proposed]*).
+- **Dependencies**: T-9.EDGE.01.
+- **Acceptance Criteria**: the stack runs with the limits set and the values declared in `app/config.py` (T-8.CFG.01); a statement beyond `db_statement_timeout_ms` is cancelled rather than held; the pool settings are honoured under the Phase 6 load paths.
+- **Evidence**: `ERPbackend/docker-compose.yml`'s limits, the settings in `ERPbackend/app/config.py`, and the check that drives the load paths and the statement timeout.
+- **Estimated Effort**: S
+- **Owner Role**: Platform Engineer
+- **Status**: TODO
+
+### Stream: `RELEASE` — contract publication at release (§4b Phase 9, finding 36)
+
+#### Task ID: T-9.RELEASE.01
+- **Title**: The release job republishes the contract, and the frontend's pin matches
+- **Description**: Make the release job republish the API contract artifact and verify that the frontend's pinned artifact matches the released backend — the coupling `T-7.AUTH.02`'s republished contract already relies on (OQ-12 decides automatic-on-tag versus a manual step with a drift check).
+- **Plan source**: §4b Phase 9 deliverables (release-time contract publication) and exit criterion 6; §1's API-first principle 8; §12 OQ-12.
+- **Scope**: The release-time publication and the pin check. **Not** the contract's content (each phase republishes its own routes) and not the frontend's consumption code (Phase 13).
+- **Variables / Config**: the publication trigger (OQ-12); `container_registry` (`ghcr.io/paws1234`).
+- **Dependencies**: T-9.DEPLOY.01.
+- **Acceptance Criteria**: the release job republishes the contract (§4b exit criterion 6); the frontend's pinned artifact matches the released backend, and a mismatch fails the release; `tools/publish_contract.py`'s output equals the served contract (the property `T-7.AUTH.02` already checks).
+- **Evidence**: the release workflow in `ERPbackend/.github/workflows/` (or the pipeline the plan names), the published artifact, and the pin-check that fails on a mismatch.
+- **Estimated Effort**: M
+- **Owner Role**: DevOps / Backend Engineer
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-9.X.GATE
+- **Title**: Phase 9's exit criteria, verified
+- **Description**: Restate plan §4b Phase 9's six exit criteria as checks and run them.
+- **Plan source**: §4b Phase 9 Exit Criteria; §6's Edge, Backups and PII metrics; §8's Deployment and Backup rows.
+- **Scope**: Verification only. **The TLS certificate and the backup target need OQ-10's answers** to run for real; until then the gate's checks run against the local/staging equivalents and say so.
+- **Variables / Config**: `tls_domain` / `acme_email`, `rate_limit_rps` / `rate_limit_burst`, `max_request_bytes`, `field_encryption_key`, `rpo_hours` / `rto_hours`, `backup_schedule` / `backup_retention_days`, `staging_image_tag` / `production_image_tag`.
+- **Dependencies**: T-9.EDGE.01, T-9.EDGE.02, T-9.SECRETS.01, T-9.CRYPTO.01, T-9.BACKUP.01, T-9.BACKUP.02, T-9.DEPLOY.01, T-9.DEPLOY.02, T-9.RELEASE.01.
+- **Acceptance Criteria**: the plan's six exit criteria, each verified as a check —
+  - Plain HTTP on the public port redirects to HTTPS with a valid certificate; the backend's port is not published
+  - Requests above the configured rate answer `429` with `Retry-After`; bodies above the limit answer `413`
+  - Payroll bank account numbers are unreadable in a raw table read and readable through the API only to a permitted caller
+  - A backup lands off the host; the restore drill restores it, runs the ledger gate, and finishes within the recorded RTO
+  - A deploy rolls back to the previous image tag, exercised in the pipeline
+  - The release job republishes the contract, and the frontend's pinned artifact matches the released backend
+- **Evidence**: the Phase 9 checks, run as one gate: the redirect/certificate/port check, the rate and size limits, the raw-read and API-permission check on payroll bank details, the off-host dump and timed restore drill with the ledger gate, the pipeline rollback, and the contract republish plus pin match. Each criterion names its check and the gate fails by name when one is missing.
+- **Estimated Effort**: M
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+---
+
+## Phase 10 — Document Control & Fiscal Close (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Dependencies: Phase 7 (attachments and audit reads are permissioned) and Phase 8 (transports and scheduling). Every task is `TODO`. **Findings closed:** 13, 14, 15, 18, 19.
+
+### Stream: `NUM` — gapless numbering (§4b Phase 10, finding 13)
+
+#### Task ID: T-10.NUM.01
+- **Title**: Server-allocated, gapless document numbers per company, type and fiscal year
+- **Description**: `app/numbering.py` allocates every statutory document's number on the server from `DocumentSequence` (company, document type, fiscal year, next number): a body-supplied number for a statutory type is refused, 10 000 randomized allocations produce zero gaps and zero duplicates, numbers are unique per company + type + fiscal year, and a new fiscal year starts at its own first number.
+- **Plan source**: §4b Phase 10 deliverable `app/numbering.py` and exit criteria 1–2; §5's `DocumentSequence` entity; §8's Document numbering row; §9's `doc_number_scope`, `doc_number_gap_policy`; §6's Numbering metric.
+- **Scope**: Allocation, the sequence table and the refusal of a supplied number. **Not** the PDF that carries the number (T-10.DOC.01).
+- **Variables / Config**: `doc_number_scope` (`company_fiscal_year` *[proposed]*), `doc_number_gap_policy` (`refuse`), `fiscal_year_start_month` (required per install — OQ-1).
+- **Dependencies**: T-8.MIG.01.
+- **Acceptance Criteria**: the number is allocated by the server; a body-supplied number for a statutory type is refused (0 accepted — §6); 10 000 randomized allocations produce zero gaps and zero duplicates; numbers are unique per company, document type and fiscal year; a new fiscal year starts at its own first number; a gap is refused under the default policy.
+- **Evidence**: `ERPbackend/app/numbering.py`, the `DocumentSequence` model and migration, and the check that runs the 10 000-allocation drive and the supplied-number refusal.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `DOC` — PDF renditions (§4b Phase 10, finding 15)
+
+#### Task ID: T-10.DOC.01
+- **Title**: PDF renditions whose totals reconcile to the JSON that produced them
+- **Description**: `app/documents.py` renders the invoice, payslip, statement, purchase order, delivery note and receipt to PDF, each with the server-allocated number of T-10.NUM.01, and each PDF's totals reconcile to the JSON payload that produced it.
+- **Plan source**: §4b Phase 10 deliverable `app/documents.py` (PDF for invoice, payslip, statement, purchase order, delivery note, receipt) and exit criterion 3; §5's document entities.
+- **Scope**: The six renditions and their reconciliation to source. **Not** the numbering (T-10.NUM.01), not the statutory artefacts (T-10.STAT.01) and not emailing the PDF (T-8.DELIVERY.01).
+- **Variables / Config**: none beyond T-10.NUM.01's numbering scope.
+- **Dependencies**: T-10.NUM.01.
+- **Acceptance Criteria**: each of the six documents renders to a PDF whose totals reconcile to the JSON that produced it (exit criterion 3); the number on the PDF is the stored sequence number; a document with no allocated number refuses to render.
+- **Evidence**: `ERPbackend/app/documents.py` and the check that renders each of the six and reconciles every total against its source JSON.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `ATT` — attachments (§4b Phase 10, finding 19)
+
+#### Task ID: T-10.ATT.01
+- **Title**: Attachments: upload, list, byte-identical download, type and size refusals
+- **Description**: `app/attachments.py` stores an attachment against its document with filename, content type, size and checksum: it uploads, lists against its document, downloads byte-identical, and is refused when its type or size is not allowed.
+- **Plan source**: §4b Phase 10 deliverable `app/attachments.py` and exit criterion 4; §5's `Attachment` entity; §9's `max_upload_bytes`, `allowed_upload_types`.
+- **Scope**: The attachment store, its routes and the allow-list. **Not** the attachments UI (Phase 13's `T-13.ATT.01`) and not virus scanning (not named by the plan).
+- **Variables / Config**: `max_upload_bytes` (10 MiB *[proposed]*), `allowed_upload_types` (pdf, png, jpeg, csv, xlsx).
+- **Dependencies**: T-7.AUTH.02 (the routes are permissioned), T-8.MIG.01.
+- **Acceptance Criteria**: an upload succeeds and lists against its document; a download is byte-identical (checksum matches); the upload is refused when its type or size is not allowed; a caller without the capability is refused (exit criterion 4).
+- **Evidence**: `ERPbackend/app/attachments.py`, the `Attachment` model and migration, and the check that uploads, lists, downloads and drives both refusals.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `AUDIT` — audit read and query (§4b Phase 10, finding 18)
+
+#### Task ID: T-10.AUDIT.01
+- **Title**: The audit trail readable through the API, with filters, pagination and a capability
+- **Description**: Read/query routes over the existing append-only audit trail, with filters and pagination, refused to a caller without the capability.
+- **Plan source**: §4b Phase 10 deliverable (audit read/query routes) and exit criterion 5; Phase 7's permissioning dependency.
+- **Scope**: The read routes and their filters. **Not** the trail's write path (Phase 0's `T-0.AUDIT.01`/`T-0.AUDIT.02`, unchanged) and not the audit viewer UI (Phase 13's `T-13.AUDIT.01`).
+- **Variables / Config**: `max_page_size` (200 *[proposed]* — T-11.PAGE.01 applies the same maximum).
+- **Dependencies**: T-7.ADMIN.02 (the capability model), T-11.PAGE.01 (the pagination contract it shares).
+- **Acceptance Criteria**: the audit trail is readable through the API with filters and pagination; a caller without the capability is refused; the read never mutates the trail (plan §8's no-rewrite non-goal); the pages are bounded by `max_page_size`.
+- **Evidence**: the audit read routes in `ERPbackend/app/api.py` (or their own module), `ERPbackend/SECURITY-REVIEW.md`'s added rows, and the check that filters, paginates and drives the refusal.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `CLOSE` — fiscal close (§4b Phase 10, finding 14)
+
+#### Task ID: T-10.CLOSE.01
+- **Title**: Close a fiscal year — closing entries, roll-forward, opening balances, reversal
+- **Description**: `app/ledger/closing.py` produces the closing entries, rolls the result forward to retained earnings, opens the next year with the closing balances, and can reverse the close — asserted from stored rows, not from the code's intention.
+- **Plan source**: §4b Phase 10 deliverable `app/ledger/closing.py` and exit criterion 6; §5's `FiscalYearClose` entity; §6's Fiscal close metric (0 tolerance).
+- **Scope**: The close, its roll-forward, the opening balances and the reversal. **Not** the number of any document the close produces (T-10.NUM.01) and **not** any change to the posting primitive or the ledger's append-only rule (plan §8's no-rewrite non-goal).
+- **Variables / Config**: `fiscal_year_start_month` (required per install — OQ-1), `period_lock_granularity` (month).
+- **Dependencies**: T-8.MIG.01; T-10.NUM.01 (a close may allocate a document number).
+- **Acceptance Criteria**: after the close the trial balance still balances, P&L accounts are zero, retained earnings equals the closed result, the balance sheet is unchanged by the close, and the next year opens with the closing balances — all asserted from stored rows (exit criterion 6, 0 tolerance — §6); the close can be reversed and the reversal is audited.
+- **Evidence**: `ERPbackend/app/ledger/closing.py`, the `FiscalYearClose` model and migration, and the check that closes a year, asserts the five figures from stored rows, reverses it and reads the reversal out of the audit trail.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer / Accountant (domain reviewer)
+- **Status**: TODO
+
+### Stream: `STAT` — Philippines statutory artefacts (§4b Phase 10, OQ-7)
+
+#### Task ID: T-10.STAT.01
+- **Title**: The Philippines statutory artefacts, produced but not transmitted
+- **Description**: Produce the Philippines statutory artefacts the pack supports as documents/renditions on top of T-10.DOC.01 and T-10.NUM.01. **Which returns, in which format, is OQ-7** — this task's artefact list is fixed by that answer before it starts, and transmission is out of scope by decision (§10).
+- **Plan source**: §4b Phase 10 deliverable (the Philippines statutory artefacts); §8's Localization market; §10's BIR/statutory boundary; §12 OQ-7.
+- **Scope**: Artefact production only. **Not** e-invoicing/BIR transmission (out pending OQ-7) and not the artifact list itself (OQ-7 blocks it).
+- **Variables / Config**: `statutory_pack` (Philippines), `fiscal_year_start_month` (required per install — OQ-1).
+- **Dependencies**: T-10.NUM.01, T-10.DOC.01. **Blocked by OQ-7** for its artefact list; the plan records it as the phase's own decision, so the task is `TODO` with that external named.
+- **Acceptance Criteria**: every artefact OQ-7 names is produced as a rendition with a server-allocated number; none is transmitted; each reconciles to the stored figures that produced it.
+- **Evidence**: the statutory module's renditions and the check that lists the OQ-7 artefact set and reconciles each to its stored source.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer / Accountant (domain reviewer)
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-10.X.GATE
+- **Title**: Phase 10's exit criteria, verified
+- **Description**: Restate plan §4b Phase 10's seven exit criteria as checks and run them.
+- **Plan source**: §4b Phase 10 Exit Criteria; §6's Numbering and Fiscal close metrics.
+- **Scope**: Verification only. `T-10.STAT.01`'s artefact list is OQ-7's; the gate names it as pending rather than asserting a list the plan does not fix.
+- **Variables / Config**: `doc_number_scope`, `doc_number_gap_policy`, `max_upload_bytes`, `allowed_upload_types`, `fiscal_year_start_month`.
+- **Dependencies**: T-10.NUM.01, T-10.DOC.01, T-10.ATT.01, T-10.AUDIT.01, T-10.CLOSE.01, T-10.STAT.01.
+- **Acceptance Criteria**: the plan's seven exit criteria, each verified as a check —
+  - A statutory document's number is allocated by the server; a body-supplied number for that type is refused; 10 000 randomized allocations produce zero gaps and zero duplicates
+  - Numbers are unique per company, document type and fiscal year, and a new fiscal year starts at its own first number
+  - Each document renders to a PDF whose totals reconcile to the JSON that produced it
+  - An attachment uploads, lists against its document, downloads byte-identical, and is refused when its type or size is not allowed
+  - The audit trail is readable through the API with filters and pagination; a caller without the capability is refused
+  - A fiscal year closes: the trial balance still balances, P&L accounts are zero, retained earnings equals the closed result, the balance sheet is unchanged by the close, and the next year opens with the closing balances — asserted from stored rows
+  - A close can be reversed, and the reversal is audited
+- **Evidence**: the Phase 10 checks run as one gate: the randomized allocation drive and supplied-number refusal, the uniqueness and new-fiscal-year checks, the six-rendition reconciliation, the attachment round-trip and refusals, the audit filters/pagination/refusal, and the close/reverse pair read from stored rows and the audit trail.
+- **Estimated Effort**: M
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+---
+
+## Phase 11 — Data Integrity & API Hardening (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Dependencies: Phase 7 and Phase 8. Every task is `TODO`. **Findings closed:** 17, 32, 37, 38, 39, 40, 43.
+
+### Stream: `CONC` — concurrency and the stale write (§4b Phase 11, finding 17)
+
+#### Task ID: T-11.CONC.01
+- **Title**: `row_version` on mutable documents, `409` on a stale write
+- **Description**: Add an integer `row_version` to every mutable document, compare it on write, and answer `409` with the current version when the caller's is stale — so two concurrent writers to one document leave the second refused and no update lost.
+- **Plan source**: §4b Phase 11 deliverables (`row_version` columns with `409` on a stale write) and exit criterion 1; §5's `row_version`; §6's Concurrency metric (0 lost updates).
+- **Scope**: The version column, its comparison and the `409` shape on mutating document routes. **Not** optimistic locking on masters that are already append-only or soft-deleted only (plan §3), and **not** the ledger or the posting primitive (plan §8's no-rewrite non-goal).
+- **Variables / Config**: none.
+- **Dependencies**: T-8.MIG.01 (the columns arrive by migration).
+- **Acceptance Criteria**: two concurrent writers to one document leave the second with `409` carrying the current version; no update is lost; a write with the current version succeeds; the error is in the one documented error shape.
+- **Evidence**: the `row_version` columns and their migration, the comparison in the write path, and the check that races two writers and asserts the `409` and the surviving row.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `IDEM` — idempotent mutations (§4b Phase 11, finding 40)
+
+#### Task ID: T-11.IDEM.01
+- **Title**: `Idempotency-Key` on every mutating route
+- **Description**: Every mutating route accepts an `Idempotency-Key` and a replay with the same key and body answers the first result rather than re-executing — 100 % of mutating routes (§6).
+- **Plan source**: §4b Phase 11 deliverables (`Idempotency-Key` on every mutating route) and exit criterion 2; §6's Concurrency metric.
+- **Scope**: The key's storage, its replay semantics and the route coverage. **Not** the concurrency version check (T-11.CONC.01) and not the pagination work (T-11.PAGE.01).
+- **Variables / Config**: none.
+- **Dependencies**: T-8.MIG.01.
+- **Acceptance Criteria**: a replayed mutation with the same key and body answers the first result on every mutating route (100 % — §6); a different body under the same key is refused rather than mis-served; the replay does not double-post to the ledger.
+- **Evidence**: the idempotency store and its migration, the per-route wiring, and the check that sweeps the mutating route table and replays each.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `PAGE` — pagination with a maximum page size (§4b Phase 11, finding 32)
+
+#### Task ID: T-11.PAGE.01
+- **Title**: `limit`/`offset` with a maximum page size on every list route
+- **Description**: Every list route takes `limit`/`offset`, caps the page at `max_page_size`, and states its ordering — 21 of 21 list routes, per §6.
+- **Plan source**: §4b Phase 11 deliverables (`limit`/`offset` with a maximum page size on every list route) and exit criterion 3; §9's `max_page_size`; §6's Pagination metric.
+- **Scope**: List-route pagination and its published parameters. **Not** cursor pagination (not named) and not the audit read routes' own filters (T-10.AUDIT.01 shares the same cap).
+- **Variables / Config**: `max_page_size` (200 *[proposed]*).
+- **Dependencies**: none beyond T-8.CFG.01.
+- **Acceptance Criteria**: every list route is paginated with a maximum page size (21 of 21 — §6); an over-large `limit` is capped, not honoured; the parameters appear in the published contract; an unpaginated list route fails a check that enumerates the route table.
+- **Evidence**: the shared pagination helper, its wiring across the list routes, and the check that enumerates the list routes and asserts 21 of 21.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `RECON` — bank reconciliation (§4b Phase 11, finding 37)
+
+#### Task ID: T-11.RECON.01
+- **Title**: Statement import, matching, exceptions, close and reversal
+- **Description**: The bank reconciliation workflow: import a statement, match lines to the ledger (with `reconciliation_amount_tolerance` at 0.00), report the exceptions, close the reconciliation and reverse the close.
+- **Plan source**: §4b Phase 11 deliverables (the bank reconciliation workflow — statement import, matching, exceptions) and exit criterion 4; §5's `Reconciliation` / `ReconciliationLine`; §9's `reconciliation_amount_tolerance`.
+- **Scope**: The import, the matching, the exception report and the close/reverse state. **Not** the FX or the statement's own PDF (T-10.DOC.01 covers statement renditions) and not automatic posting of adjustments (not named).
+- **Variables / Config**: `reconciliation_amount_tolerance` (`0.00`).
+- **Dependencies**: T-8.MIG.01.
+- **Acceptance Criteria**: a statement imports; lines match within the 0.00 tolerance and unmatched lines are reported as exceptions; a reconciliation closes and is reversible (exit criterion 4); the close does not disturb the ledger.
+- **Evidence**: the reconciliation module, its models and migration, and the check that imports a statement, asserts the matches and exceptions, then closes and reverses.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `FX` — rate provenance (§4b Phase 11, finding 39)
+
+#### Task ID: T-11.FX.01
+- **Title**: An FX provider adapter with recorded provenance, and a failure that holds the last rate
+- **Description**: An adapter for the configured FX provider records each rate with its source and `fetched_at` (`FxRate.source` / `fetched_at`), and a provider failure leaves the previous rate in force and reports the staleness visibly.
+- **Plan source**: §4b Phase 11 deliverables (an FX provider adapter with recorded provenance) and exit criterion 5; §5's `FxRate.source / fetched_at`; §10's FX provider external; §9's `fx_rate_source`.
+- **Scope**: The adapter, the provenance columns and the failure behaviour. **Not** the gain/loss calculation (Phase 1's multi-currency engine, unchanged) and not choosing the provider (OQ-1's neighbour in §8: `manual` until a provider is chosen).
+- **Variables / Config**: `fx_rate_source` (`manual` until a provider is chosen), `fx_sync_schedule` (daily).
+- **Dependencies**: T-8.WORK.02 (the sync is scheduled), T-8.MIG.01.
+- **Acceptance Criteria**: a sync records each rate with its source and fetch time; a provider failure leaves the previous rate in force and is visible (exit criterion 5); a rate with no source is not accepted; the `manual` default still works with no provider configured.
+- **Evidence**: the provider adapter, the `FxRate` provenance columns and migration, and the check that syncs, then simulates a failure and asserts the held rate and the visibility.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `DEV` — POS device adapters (§4b Phase 11, finding 38)
+
+#### Task ID: T-11.DEV.01
+- **Title**: Drawer, scale, card terminal and label printer behind interfaces
+- **Description**: POS device adapters — cash drawer, scale, card terminal, label printing — behind interfaces, exercised against simulators. **Which real devices exist is OQ-8**; adapters plus simulators are the deliverable the plan fixes regardless.
+- **Plan source**: §4b Phase 11 deliverables (POS device adapters behind interfaces); §10's POS hardware external; §12 OQ-8.
+- **Scope**: The four adapter interfaces and their simulators. **Not** a POS UI change (the domain screens are out, plan §8) and not device-specific drivers the plan does not name.
+- **Variables / Config**: the device endpoints from `integration_endpoints` (T-0.INT.01's boundary).
+- **Dependencies**: T-8.CFG.01.
+- **Acceptance Criteria**: each of the four adapters sits behind an interface and is exercised against a simulator; a missing or failing device does not take the sale path down silently (principle 4); the verification claims only simulator behaviour until OQ-8 names real devices.
+- **Evidence**: the adapter interfaces and simulators in `ERPbackend/app/` and the check that drives each adapter against its simulator, including a device failure.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `CEIL` — a disposition for every recorded ceiling (§4b Phase 11, finding 43)
+
+#### Task ID: T-11.CEIL.01
+- **Title**: Every in-code ceiling disposed, every "schedule" entry given an owner
+- **Description**: Catalogue the 29 in-code ceilings the audit recorded and give each a disposition (closed by a named task, or accepted with a reason), and make each "schedule" entry name the phase that owns it.
+- **Plan source**: §4b Phase 11 deliverables (a disposition for each of the 29 ceilings) and exit criterion 6; §4b §4b preamble's spot-verification (29 in-code ceilings); §6's no-regression discipline.
+- **Scope**: The ceiling register and its dispositions. **Not** closing the ceilings themselves (each disposition names the task that does). **No new ceiling is added and none is removed without a disposition.**
+- **Variables / Config**: none.
+- **Dependencies**: none (it reads the tree; dispositions name tasks in Phases 7–14).
+- **Acceptance Criteria**: every recorded ceiling carries a disposition (29 of 29); each "schedule" entry names the phase that owns it; a ceiling with no disposition fails the check by name.
+- **Evidence**: a ceiling register (a document in `ERPbackend/` alongside `SECURITY-REVIEW.md`) and the check that enumerates the ceilings in the tree and asserts a disposition for each.
+- **Estimated Effort**: M
+- **Owner Role**: Tech Lead
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-11.X.GATE
+- **Title**: Phase 11's exit criteria, verified
+- **Description**: Restate plan §4b Phase 11's six exit criteria as checks and run them.
+- **Plan source**: §4b Phase 11 Exit Criteria; §6's Concurrency, Pagination and PII metrics.
+- **Scope**: Verification only.
+- **Variables / Config**: `max_page_size`, `reconciliation_amount_tolerance`, `fx_rate_source`.
+- **Dependencies**: T-11.CONC.01, T-11.IDEM.01, T-11.PAGE.01, T-11.RECON.01, T-11.FX.01, T-11.DEV.01, T-11.CEIL.01.
+- **Acceptance Criteria**: the plan's six exit criteria, each verified as a check —
+  - Two concurrent writers to one document: the second gets `409` with the current version, and no update is lost
+  - A replayed mutation with the same key and body answers the first result, on every mutating route
+  - Every list route is paginated with a maximum page size (21 of 21)
+  - A bank statement imports, matches and reports its exceptions; a reconciliation closes and is reversible
+  - An FX sync records each rate with its source; a provider failure leaves the previous rate in force and is visible
+  - Every recorded ceiling carries a disposition, and each "schedule" entry names the phase that owns it
+- **Evidence**: the Phase 11 checks run as one gate: the two-writer race, the mutating-route replay sweep, the 21-of-21 list-route enumeration, the statement import/match/exception/close/reverse run, the FX sync with a simulated provider failure, and the ceiling register enumeration.
+- **Estimated Effort**: M
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+---
+
+## Phase 12 — Engineering Standards & Assurance (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Dependencies: Phase 7 (the session flow the E2E drives) and Phase 8 (the checks it runs). Every task is `TODO`. **Findings closed:** 21, 22, 35, 41, 42 (plus lockfile integrity, §11's sixth theme for this phase).
+
+### Stream: `LINT` — ruff and mypy in CI (§4b Phase 12, findings 21 and 22)
+
+#### Task ID: T-12.LINT.01
+- **Title**: `pyproject.toml` with ruff and mypy, running in CI, failing on a deliberate violation
+- **Description**: Add `pyproject.toml` with ruff (check and format) and mypy configuration, run them in the pipeline, and prove a deliberate violation fails the run.
+- **Plan source**: §4b Phase 12 deliverables (`pyproject.toml` — ruff, mypy, pytest) and exit criterion 1; §11 finding 21/22 theme ("a pipeline that runs checks only").
+- **Scope**: The lint and type configuration and their CI step. **Not** the pytest runner and coverage floor (T-12.TEST.01) and not the frontend lint (T-12.FE.01).
+- **Variables / Config**: `coverage_floor_backend` is T-12.TEST.01's.
+- **Dependencies**: none.
+- **Acceptance Criteria**: `ruff check`, `ruff format --check` and `mypy` run in CI and pass (exit criterion 1); a deliberate violation fails the run; the configuration lives in `pyproject.toml` in the backend repository.
+- **Evidence**: `ERPbackend/pyproject.toml`, the pipeline step in `ERPbackend/.github/workflows/`, and the recorded run showing a deliberate violation going red.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `PKG` — packaging, lockfiles and lockfile integrity (§4b Phase 12, finding 22)
+
+#### Task ID: T-12.PKG.01
+- **Title**: Hashed lockfiles, verified in CI
+- **Description**: Generate hashed lockfiles for the backend and frontend and verify in CI that they match their manifests (lockfile integrity) — the finding §11 records alongside type and packaging.
+- **Plan source**: §4b Phase 12 deliverables (hashed lockfiles); §11's theme "type and packaging … lockfile integrity".
+- **Scope**: The lockfiles, their hashes and the CI verification. **Not** dependency upgrades (Dependabot is T-12.SCAN.01).
+- **Variables / Config**: none.
+- **Dependencies**: T-12.LINT.01.
+- **Acceptance Criteria**: the lockfiles are hashed; CI fails when a manifest and its lock disagree; an installed environment resolves exactly the locked versions.
+- **Evidence**: `ERPbackend/requirements*.txt` / `ERPfrontend/package-lock.json` (as the repositories carry them) and the CI step that verifies them.
+- **Estimated Effort**: S
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `TEST` — the pytest runner and the coverage floor (§4b Phase 12, finding 41)
+
+#### Task ID: T-12.TEST.01
+- **Title**: Every existing check runs under pytest, with coverage measured and the floor met
+- **Description**: A pytest runner that runs every existing `tests/check_*.py` unchanged in substance, measures coverage and enforces `coverage_floor_backend` — 100 % of the existing checks still passing (§6's No regression).
+- **Plan source**: §4b Phase 12 deliverables (a pytest runner with a coverage floor) and exit criterion 2; §9's `coverage_floor_backend` / `coverage_floor_frontend`; §6's Assurance and No regression metrics.
+- **Scope**: The runner, the coverage measurement and the floor. **Not** the property suite (T-12.PROP.01) and not the E2E browser pass (T-12.E2E.01).
+- **Variables / Config**: `coverage_floor_backend` (70 *[proposed]*), `coverage_floor_frontend` (60 *[proposed]*).
+- **Dependencies**: T-12.LINT.01.
+- **Acceptance Criteria**: every existing `tests/check_*.py` still runs, now under pytest, with coverage measured and the floor met (exit criterion 2); 100 % of them still pass (§6's No regression); the ledger-integrity gate still passes.
+- **Evidence**: `ERPbackend/pytest.ini` / `pyproject.toml`'s pytest section and the pipeline step, plus the recorded run that lists every check and the coverage figure against the floor.
+- **Estimated Effort**: M
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+### Stream: `PROP` — property and golden financial datasets (§4b Phase 12, finding 41)
+
+#### Task ID: T-12.PROP.01
+- **Title**: Ledger invariants under randomized postings, and stable golden sets
+- **Description**: A property suite that exercises the ledger invariants over randomized postings with no violation, plus golden payroll and close datasets that are stable — the tests that would catch a wrong number.
+- **Plan source**: §4b Phase 12 deliverables (property and golden financial datasets) and exit criterion 3; §6's No regression metric.
+- **Scope**: The property suite and the two golden sets. **Not** the ceiling register (T-11.CEIL.01) and not the export/erasure tooling (T-12.DATA.01).
+- **Variables / Config**: none.
+- **Dependencies**: T-12.TEST.01.
+- **Acceptance Criteria**: the property suite exercises the ledger invariants over randomized postings with no violation (exit criterion 3); the golden payroll and close sets are stable across runs and fail on a deliberate numeric change; §6 metrics 1 (balanced postings) and the payroll error budget remain held.
+- **Evidence**: the property suite and the golden datasets in `ERPbackend/tests/`, and the recorded run that shows a deliberate numeric change failing the set.
+- **Estimated Effort**: L
+- **Owner Role**: QA / Test Engineer / Backend Engineer
+- **Status**: TODO
+
+### Stream: `SCAN` — dependency, audit and code scanning (§4b Phase 12, finding 35)
+
+#### Task ID: T-12.SCAN.01
+- **Title**: Dependabot, `pip-audit`, `npm audit` and CodeQL on both repositories
+- **Description**: Dependabot opens a pull request for a high-severity dependency finding; `pip-audit` and `npm audit` report nothing outstanding; CodeQL runs on both repositories.
+- **Plan source**: §4b Phase 12 deliverables (Dependabot, `pip-audit`/`npm audit`, CodeQL) and exit criterion 4; §6's Assurance metric (0 high or critical findings outstanding).
+- **Scope**: The three scanners and their CI wiring. **Not** pen-testing, not a security review (Phase 6's `T-6.HARD.02` and Phase 7's `T-7.SEC.01` own those) and not auto-merging upgrades.
+- **Variables / Config**: none.
+- **Dependencies**: T-12.PKG.01.
+- **Acceptance Criteria**: a high-severity dependency finding arrives as a Dependabot pull request (exit criterion 4); `pip-audit` and `npm audit` report nothing outstanding; CodeQL runs on both repositories (0 high or critical outstanding — §6).
+- **Evidence**: `.github/dependabot.yml` in each repository, the audit and CodeQL workflow steps, and the recorded runs including a seeded finding.
+- **Estimated Effort**: M
+- **Owner Role**: DevOps / Security Engineer
+- **Status**: TODO
+
+### Stream: `FE` — frontend ESLint and Prettier (§4b Phase 12, finding 21)
+
+#### Task ID: T-12.FE.01
+- **Title**: ESLint and Prettier in the frontend pipeline
+- **Description**: Add ESLint and Prettier to the frontend repository and run them in its pipeline, so the frontend half of §4b Phase 12's lint criterion is held in the repository that owns it.
+- **Plan source**: §4b Phase 12 deliverables (frontend ESLint/Prettier) and exit criterion 1's frontend half; §1's repository routing.
+- **Scope**: The frontend linter and formatter and their pipeline step. **Not** the backend's ruff/mypy (T-12.LINT.01).
+- **Variables / Config**: none.
+- **Dependencies**: none.
+- **Acceptance Criteria**: ESLint and Prettier run in the frontend pipeline and pass; a deliberate violation fails the run; the frontend repository's own `npm run check` stays green (the contract `T-7.WEB.01` and `T-13.*` build against).
+- **Evidence**: `ERPfrontend/.eslintrc*` / `eslint.config.*`, `.prettierrc`, the pipeline step in `ERPfrontend/.github/workflows/`, and the recorded red run.
+- **Estimated Effort**: S
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Stream: `E2E` — Playwright and the accessibility pass (§4b Phase 12, finding 41)
+
+#### Task ID: T-12.E2E.01
+- **Title**: Playwright drives sign-in → MFA → admin → sign-out; axe finds no critical violation
+- **Description**: A Playwright suite that drives sign-in → MFA → admin → sign-out against the real stack, and an axe accessibility pass that reports no critical violation on any page.
+- **Plan source**: §4b Phase 12 deliverables (Playwright E2E and an axe accessibility pass) and exit criterion 5; §6's Assurance metric (0 critical accessibility violations).
+- **Scope**: The browser suite and the accessibility pass, spanning both repositories (the driver lives in the frontend repository and drives the backend's published contract, as this ledger's routing map states). **Not** the unit/integration runner (T-12.TEST.01).
+- **Variables / Config**: `api_base_url` (supplied per environment).
+- **Dependencies**: T-7.WEB.01 (the session shell it drives), T-13.AUTH.01 (the UI it drives), T-9.EDGE.01 (an origin to drive).
+- **Acceptance Criteria**: Playwright drives sign-in → MFA → admin → sign-out in a browser (exit criterion 5); axe reports no critical violation on any page (0 — §6); the suite runs in CI, not only locally.
+- **Evidence**: the Playwright suite and axe configuration in the frontend repository and the recorded run, including one page driven with a seeded violation to show the pass can fail.
+- **Estimated Effort**: M
+- **Owner Role**: QA / Frontend Engineer
+- **Status**: TODO
+
+### Stream: `GOV` — CODEOWNERS and the testing document (§4b Phase 12 deliverables)
+
+#### Task ID: T-12.GOV.01
+- **Title**: CODEOWNERS and an updated `TESTING.md`
+- **Description**: Add CODEOWNERS for each repository and update `TESTING.md` to describe the runner, the coverage floor, the property and golden sets and the E2E/axe pass as they now exist.
+- **Plan source**: §4b Phase 12 deliverables (CODEOWNERS, an updated `TESTING.md`).
+- **Scope**: The ownership file and the testing document. **Not** the tests themselves.
+- **Variables / Config**: none.
+- **Dependencies**: T-12.TEST.01, T-12.PROP.01, T-12.E2E.01.
+- **Acceptance Criteria**: CODEOWNERS exists in each repository and routes reviews as the plan's repository split implies; `TESTING.md` names every check the pipeline runs and claims no behaviour a check does not hold (principle 5).
+- **Evidence**: `.github/CODEOWNERS` in each repository and the updated `ERPbackend/TESTING.md`.
+- **Estimated Effort**: S
+- **Owner Role**: Tech Lead
+- **Status**: TODO
+
+### Stream: `DATA` — tenant export and erasure (§4b Phase 12, finding 42)
+
+#### Task ID: T-12.DATA.01
+- **Title**: A complete tenant export, and an erasure that anonymises without altering a posting
+- **Description**: Tenant export produces a complete artefact; an erasure request anonymises a person without altering any posting, and the ledger gate still passes afterwards.
+- **Plan source**: §4b Phase 12 deliverables (tenant export and erasure tooling) and exit criterion 6; §9's `data_retention_*` (OQ-9); §6's No regression metric.
+- **Scope**: The export and erasure tooling. **Not** the retention *periods* (OQ-9 blocks the defaults) and not statutory retention rules (OQ-9).
+- **Variables / Config**: `data_retention_*` (export, erasure, log, attachment — pending OQ-9).
+- **Dependencies**: T-12.TEST.01.
+- **Acceptance Criteria**: the export produces a complete artefact (exit criterion 6); erasure anonymises a person without altering a posting; the ledger gate still passes after an erasure (§6's No regression); the retention periods used are the OQ-9 ones once answered, and the task says so until then.
+- **Evidence**: the export and erasure tooling in `ERPbackend/tools/` (or its equivalent) and the check that exports, erases, re-reads the postings and runs the ledger gate.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer / Data Engineer
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-12.X.GATE
+- **Title**: Phase 12's exit criteria, verified
+- **Description**: Restate plan §4b Phase 12's six exit criteria as checks and run them.
+- **Plan source**: §4b Phase 12 Exit Criteria; §6's Assurance and No regression metrics.
+- **Scope**: Verification only, spanning both repositories.
+- **Variables / Config**: `coverage_floor_backend` / `coverage_floor_frontend`.
+- **Dependencies**: T-12.LINT.01, T-12.PKG.01, T-12.TEST.01, T-12.PROP.01, T-12.SCAN.01, T-12.FE.01, T-12.E2E.01, T-12.GOV.01, T-12.DATA.01.
+- **Acceptance Criteria**: the plan's six exit criteria, each verified as a check —
+  - `ruff check`, `ruff format --check` and `mypy` run in CI and pass; a deliberate violation fails the run
+  - Every existing `tests/check_*.py` still runs, now under pytest, with coverage measured and the floor met
+  - The property suite exercises the ledger invariants over randomized postings with no violation; the golden payroll and close sets are stable
+  - A high-severity dependency finding arrives as a Dependabot pull request; `pip-audit` and `npm audit` report nothing outstanding; CodeQL runs on both repositories
+  - Playwright drives sign-in → MFA → admin → sign-out in a browser, and axe reports no critical violation on any page
+  - A tenant export produces a complete artefact; an erasure request anonymises a person without altering a posting, and the ledger gate still passes
+- **Evidence**: the Phase 12 gate runs the lint/type step, the pytest run with coverage against the floor, the property suite and golden sets, the scan results with a seeded high-severity finding, the Playwright/axe run, and the export/erasure run followed by the ledger gate — each criterion naming its check.
+- **Estimated Effort**: M
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+---
+
+## Phase 13 — Frontend Operational Shell (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Dependencies: Phase 7, Phase 8, Phase 10 (the APIs it consumes) and Phase 12 (the harness it is tested with). Every task lands in the **frontend repository** and is `TODO`. **Findings closed:** 28 (shell half), 30, 31. **Out of scope by decision:** the domain screens — finding 28's second half — which map to no task (see the audit traceability table).
+
+### Stream: `AUTH` — the session UI (§4b Phase 13, finding 28 — the shell half)
+
+#### Task ID: T-13.AUTH.01
+- **Title**: Sign in, MFA, expiry and sign out against the real API
+- **Description**: The login/MFA/session screens: sign in, the MFA prompt, the expiry and revoked-session landing with the reason shown, and sign out. This is the UI half of Phase 7's frontend criterion (`T-7.WEB.01` builds the shell seam; this task is the operational UI the shell then carries).
+- **Plan source**: §4b Phase 13 deliverables (the login/MFA/session UI) and exit criterion 1; §11 finding 28's shell half.
+- **Scope**: The frontend only, consuming the published contract. **Not** the API (Phases 7–12) and not the company switcher (T-13.SWITCH.01).
+- **Variables / Config**: `api_base_url` (supplied per environment).
+- **Dependencies**: T-7.WEB.01, T-12.FE.01.
+- **Acceptance Criteria**: sign in, MFA, expiry and sign out all work against the real API (exit criterion 1); an expired or revoked session lands on the sign-in screen with the reason shown; an MFA-owing session reaches nothing else.
+- **Evidence**: the session UI in `ERPfrontend/app/` and `lib/`, and the E2E run (`T-12.E2E.01`) that drives sign-in → MFA → sign-out.
+- **Estimated Effort**: M
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Stream: `SWITCH` — the company switcher (§4b Phase 13, finding 28 — the shell half)
+
+#### Task ID: T-13.SWITCH.01
+- **Title**: Switch the acting company from the shell
+- **Description**: The company switcher, bound to `POST /auth/company`, showing only the companies the session may act in and updating the shell's data on switch.
+- **Plan source**: §4b Phase 13 deliverables (the company switcher) and exit criterion 1.
+- **Scope**: The switcher UI and its state. **Not** company administration (T-13.ADMIN.01).
+- **Variables / Config**: none.
+- **Dependencies**: T-13.AUTH.01.
+- **Acceptance Criteria**: the switcher lists only the session's memberships and switching works against the real API (exit criterion 1); a company the session holds no membership in is not offered; the shell's data reloads for the new company without a full sign-out.
+- **Evidence**: the switcher component in `ERPfrontend/` and the E2E run that switches company and asserts the reloaded data.
+- **Estimated Effort**: S
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Stream: `ADMIN` — the admin screens (§4b Phase 13, finding 28 — the shell half)
+
+#### Task ID: T-13.ADMIN.01
+- **Title**: Admin screens for users, roles, grants and companies
+- **Description**: Screens over the Phase 7 administration routes: users (create, set password, disable), roles and capability grants, field restrictions, assignments, and company create/suspend.
+- **Plan source**: §4b Phase 13 deliverables (admin screens — users, roles, grants, companies) and exit criterion 2.
+- **Scope**: The four admin areas, consuming the published contract. **Not** the API (T-7.ADMIN.01–03) and not self-service signup (out).
+- **Variables / Config**: `mfa_required_roles` (shown where the assignment is refused for want of a factor).
+- **Dependencies**: T-13.AUTH.01, T-7.ADMIN.01, T-7.ADMIN.02, T-7.ADMIN.03.
+- **Acceptance Criteria**: an administrator creates a user and grants a role from the UI (exit criterion 2); a refusal (no second factor, no capability, unknown company) is shown as the API's refusal rather than swallowed; company create and suspend both work.
+- **Evidence**: the admin screens in `ERPfrontend/app/` and the E2E run that creates a user, grants a role and suspends a company through the UI.
+- **Estimated Effort**: L
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Stream: `AUDIT` — the audit trail viewer (§4b Phase 13, finding 28 — the shell half)
+
+#### Task ID: T-13.AUDIT.01
+- **Title**: The audit trail viewer
+- **Description**: A viewer over Phase 10's audit read routes: filters, pagination and the entry detail, with the capability refusal rendered as the API's refusal.
+- **Plan source**: §4b Phase 13 deliverables (the audit trail viewer).
+- **Scope**: The read-only viewer. **Not** any write to the trail (the trail stays append-only — plan §8's no-rewrite non-goal).
+- **Variables / Config**: `max_page_size` (the cap the API enforces).
+- **Dependencies**: T-13.AUTH.01, T-10.AUDIT.01.
+- **Acceptance Criteria**: the trail is readable with filters and pagination from the UI; a caller without the capability sees the API's refusal; the viewer never offers a mutation.
+- **Evidence**: the viewer in `ERPfrontend/app/` and the E2E run that filters and pages through entries.
+- **Estimated Effort**: M
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Stream: `ATT` — the attachments UI (§4b Phase 13, finding 28 — the shell half)
+
+#### Task ID: T-13.ATT.01
+- **Title**: Attachments UI — upload, list, download
+- **Description**: The attachments UI over Phase 10's attachment routes: upload against a document, list, download, and the type/size refusal shown as the API's refusal.
+- **Plan source**: §4b Phase 13 deliverables (the attachments UI).
+- **Scope**: The attachment UI only. **Not** the attachment store (T-10.ATT.01).
+- **Variables / Config**: `max_upload_bytes`, `allowed_upload_types` (surfaced as the refusal reasons).
+- **Dependencies**: T-13.AUTH.01, T-10.ATT.01.
+- **Acceptance Criteria**: an upload succeeds and lists against its document; a download is byte-identical to what was uploaded; a refused type or size shows the API's refusal.
+- **Evidence**: the attachments UI in `ERPfrontend/app/` and the E2E run that uploads, lists, downloads and drives a refusal.
+- **Estimated Effort**: M
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Stream: `SHELL` — route-segment boundaries (§4b Phase 13, finding 30)
+
+#### Task ID: T-13.SHELL.01
+- **Title**: `error.tsx`, `loading.tsx` and `not-found.tsx` for every route segment
+- **Description**: Add the three boundaries to every route segment so a thrown error renders the boundary rather than a blank page, and a slow or missing route renders its loading or not-found state.
+- **Plan source**: §4b Phase 13 deliverables (`error.tsx`/`loading.tsx`/`not-found.tsx` per route segment) and exit criterion 3; §11 finding 30; the Error/loading/not-found boundaries listed for the frontend repository in §1.
+- **Scope**: The boundaries and their coverage of every segment. **Not** global error reporting to a sink (OQ-4's error-tracking sink is Phase 8's).
+- **Variables / Config**: none.
+- **Dependencies**: T-13.AUTH.01.
+- **Acceptance Criteria**: every route segment has the three boundaries (exit criterion 3); a thrown error renders the boundary, not a blank page; no page can take the shell down (§4b Phase 13's goal); a segment missing a boundary fails the check by name.
+- **Evidence**: the boundary files across `ERPfrontend/app/` and the check that enumerates the segments and drives a thrown error per boundary.
+- **Estimated Effort**: M
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Stream: `I18N` — locale formatting (§4b Phase 13, finding 31)
+
+#### Task ID: T-13.I18N.01
+- **Title**: `lib/i18n.ts` — locale-aware amounts and dates, and a matching `lang` attribute
+- **Description**: `lib/i18n.ts` formats amounts and dates per locale, the document's `lang` attribute matches the active locale, and no admin string is hard-coded English.
+- **Plan source**: §4b Phase 13 deliverables (`lib/i18n.ts` with locale-aware number and date formatting, and a matching `lang` attribute) and exit criterion 4; §11 finding 31.
+- **Scope**: The formatting library, the string catalogue and the `lang` attribute. **Not** translating the domain screens (out by decision).
+- **Variables / Config**: the locale set (Philippines market, §8); `base_currency` per company for amount rendering.
+- **Dependencies**: T-13.SHELL.01.
+- **Acceptance Criteria**: amounts and dates render per locale (exit criterion 4); no admin string is hard-coded English; the `lang` attribute matches the active locale; a hard-coded English admin string fails the check.
+- **Evidence**: `ERPfrontend/lib/i18n.ts`, the string catalogue and the check that renders a locale-varied page and asserts the `lang` attribute and the formatting.
+- **Estimated Effort**: M
+- **Owner Role**: Frontend Engineer
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-13.X.GATE
+- **Title**: Phase 13's exit criteria, verified
+- **Description**: Restate plan §4b Phase 13's four exit criteria as checks and run them.
+- **Plan source**: §4b Phase 13 Exit Criteria; §6's Assurance metric (0 critical accessibility violations is `T-12.E2E.01`'s, run against these pages).
+- **Scope**: Verification only, in the frontend repository, driving the real API (Phase 9's origin).
+- **Variables / Config**: `api_base_url`.
+- **Dependencies**: T-13.AUTH.01, T-13.SWITCH.01, T-13.ADMIN.01, T-13.AUDIT.01, T-13.ATT.01, T-13.SHELL.01, T-13.I18N.01.
+- **Acceptance Criteria**: the plan's four exit criteria, each verified as a check —
+  - Sign in, MFA, expiry, sign out and company switch all work against the real API
+  - An administrator creates a user and grants a role from the UI
+  - Every route segment has the three boundaries; a thrown error renders the boundary, not a blank page
+  - Amounts and dates render per locale, and no admin string is hard-coded English
+- **Evidence**: the frontend repository's own `npm run check` plus the E2E run that drives the four criteria (sign-in/MFA/expiry/sign-out/switch, admin create-and-grant, a boundary per segment, locale rendering and `lang`).
+- **Estimated Effort**: S
+- **Owner Role**: QA / Frontend Engineer
+- **Status**: TODO
+
+---
+
+## Phase 14 — Onboarding & Legacy Migration (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Dependencies: Phase 7, Phase 8 and Phase 10. Every task lands in the backend repository and is `TODO`. **Finding closed:** 23.
+
+### Stream: `PROV` — company provisioning (§4b Phase 14)
+
+#### Task ID: T-14.PROV.01
+- **Title**: Provision a company through the API/CLI with its market, fiscal calendar and reporting currency
+- **Description**: Provisioning on top of migrations — the company, its market pack, its fiscal calendar and its reporting currency — with the act audited, so a tenant is stood up without the database owner's hands on it.
+- **Plan source**: §4b Phase 14 deliverables (the company provisioning API/CLI on top of migrations) and exit criterion 1.
+- **Scope**: Provisioning on top of migrations. **Not** the first company (Phase 7's `T-7.INST.01`/`T-7.ADMIN.03` own the install and the company routes) and not the legacy import (T-14.IMPORT.01).
+- **Variables / Config**: `fiscal_year_start_month` (required per install — OQ-1), `base_currency`, the market pack (Philippines).
+- **Dependencies**: T-8.MIG.02, T-7.ADMIN.03.
+- **Acceptance Criteria**: a company is provisioned through the API with its market, fiscal calendar and reporting currency, and the act is audited (exit criterion 1); the pack refuses to guess an unconfirmed fiscal-year start (OQ-1); provisioning on a migrated schema works identically to one produced by `create_all`.
+- **Evidence**: the provisioning path and the check that provisions a company, reads the pack's calendar and currency back, and finds the audit entry.
+- **Estimated Effort**: M
+- **Owner Role**: Backend Engineer
+- **Status**: TODO
+
+### Stream: `IMPORT` — legacy import (§4b Phase 14, finding 23)
+
+#### Task ID: T-14.IMPORT.01
+- **Title**: `tools/import_legacy.py` — masters and opening balances as one balanced opening entry
+- **Description**: Import chart-of-accounts extensions, customers, suppliers, items, BOMs, warehouses and employees, and post opening balances as **one balanced opening entry**, yielding an opening trial balance that ties to the source within zero tolerance.
+- **Plan source**: §4b Phase 14 deliverable `tools/import_legacy.py` and exit criterion 2; §6's No regression metric (the ledger gate afterwards).
+- **Scope**: The importer and its mapping. **Not** ongoing synchronisation with a legacy system (one-way cutover) and not the freeze/export procedure (T-14.RUNBOOK.01).
+- **Variables / Config**: `base_currency`, `fiscal_year_start_month` (both from T-14.PROV.01's provisioning).
+- **Dependencies**: T-14.PROV.01, T-10.NUM.01 (documents the import may create).
+- **Acceptance Criteria**: an import of masters and opening balances yields an opening trial balance that ties to the source within zero tolerance (exit criterion 2); the opening balances are one balanced entry, not many (0 difference by §6's posting metric); the ledger gate passes afterwards.
+- **Evidence**: `ERPbackend/tools/import_legacy.py` and the check that imports a faithful export, compares the opening trial balance with the source and runs the ledger gate.
+- **Estimated Effort**: L
+- **Owner Role**: Backend Engineer / Data Engineer
+- **Status**: TODO
+
+### Stream: `RUNBOOK` — the cutover runbook (§4b Phase 14, finding 23)
+
+#### Task ID: T-14.RUNBOOK.01
+- **Title**: `MIGRATION.md` — freeze, export, transform, import, reconcile, go-live, rollback
+- **Description**: Write the cutover runbook in that order and execute it end to end on a faithful export, including its rollback step.
+- **Plan source**: §4b Phase 14 deliverable `MIGRATION.md` and exit criterion 3; §11 finding 23 ("Legacy onboarding").
+- **Scope**: The runbook and its rehearsal. **Not** the importer itself (T-14.IMPORT.01) and not a data-cleansing methodology the plan does not name.
+- **Variables / Config**: none.
+- **Dependencies**: T-14.IMPORT.01, T-9.BACKUP.02 (the rollback step restores).
+- **Acceptance Criteria**: the cutover runbook has been executed end to end on a faithful export, including its rollback step (exit criterion 3); each step states its own verification; the runbook names the person who decides go-live.
+- **Evidence**: `ERPbackend/MIGRATION.md` and the recorded rehearsal, including the rollback that returns to the pre-cutover state.
+- **Estimated Effort**: M
+- **Owner Role**: Tech Lead / Data Engineer
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-14.X.GATE
+- **Title**: Phase 14's exit criteria, verified
+- **Description**: Restate plan §4b Phase 14's three exit criteria as checks and run them.
+- **Plan source**: §4b Phase 14 Exit Criteria; §6's No regression metric.
+- **Scope**: Verification only.
+- **Variables / Config**: `fiscal_year_start_month`, `base_currency`.
+- **Dependencies**: T-14.PROV.01, T-14.IMPORT.01, T-14.RUNBOOK.01.
+- **Acceptance Criteria**: the plan's three exit criteria, each verified as a check —
+  - A company is provisioned through the API with its market, fiscal calendar and reporting currency, and the act is audited
+  - An import of masters and opening balances yields an opening trial balance that ties to the source within zero tolerance, and the ledger gate passes afterwards
+  - The cutover runbook has been executed end to end on a faithful export, including its rollback step
+- **Evidence**: the Phase 14 checks run as one gate: the provisioning-and-audit run, the import-and-reconcile run followed by the ledger gate, and the recorded cutover rehearsal with its rollback.
+- **Estimated Effort**: S
+- **Owner Role**: QA / Test Engineer
+- **Status**: TODO
+
+---
+
+## Phase 15 — Functional Completeness: decision gate (plan §4b, added 2026-10-10)
+
+> Materialised by the `/execute` handover run of 2026-10-10. Dependencies: Phases 7–14 (deliberately last, so new modules are built on a foundation that runs). These tasks land in the **planning repository** — they produce recorded decisions, not product code — and they are the user's to answer (§12 OQ-2). Every task is `TODO`. **Finding closed:** the audit's informational module list.
+
+### Stream: `SCOPE` — the candidate decisions (§4b Phase 15)
+
+#### Task ID: T-15.SCOPE.01
+- **Title**: Record every candidate as IN with its own phase sketched, or OUT with a reason
+- **Description**: For each of the nine candidates — fixed assets & depreciation, budgeting/forecast-vs-actual, treasury/cash management, project & job costing, preventive maintenance, quality management, multi-entity consolidation, e-invoicing/BIR transmission, e-signature — record IN (with its own phase sketched) or OUT (with a reason), **by the user**.
+- **Plan source**: §4b Phase 15 candidates and exit criterion 1; §12 OQ-2.
+- **Scope**: The decision record only. **Nothing is built from this gate** (exit criterion 3).
+- **Variables / Config**: none.
+- **Dependencies**: none (the gate is deliberative), but it is deliberately last in the phase order.
+- **Acceptance Criteria**: each candidate is recorded as IN (with its own phase sketched) or OUT (with a reason), by the user (exit criterion 1); no candidate is left unrecorded; nothing is built from this gate without a written decision (exit criterion 3).
+- **Evidence**: the decision record — the plan's §4b Phase 15 section and this ledger's Open Questions area — listing all nine candidates with their IN/OUT verdict and reason, with the user recorded as the decider.
+- **Estimated Effort**: S
+- **Owner Role**: Product Owner (with the user as decider)
+- **Status**: TODO
+
+#### Task ID: T-15.SCOPE.02
+- **Title**: Resolve explicitly the two candidates that contradict §8's non-goals
+- **Description**: Resolve **multi-entity consolidation** and **quality management** explicitly against §8's recorded non-goals ("inter-company transactions and consolidation", "Manufacturing beyond BOM, routing, work centres, work orders and MRP — no PLM or quality management") — as a written decision, not by omission.
+- **Plan source**: §4b Phase 15 exit criterion 2; §8's explicit non-goals.
+- **Scope**: The two conflicting candidates only. **Not** re-opening the other seven (T-15.SCOPE.01).
+- **Variables / Config**: none.
+- **Dependencies**: T-15.SCOPE.01.
+- **Acceptance Criteria**: the contradiction is recorded as a conflict in the ledger rather than resolved silently (§4b Phase 15 exit criterion 2, and `/execute`'s conflict rule); each of the two carries a written decision — the §8 non-goal upheld, or the non-goal explicitly amended in the plan — with the user as decider.
+- **Evidence**: the recorded decision for both candidates, cross-referenced to §8's non-goal lines, in the plan's §4b Phase 15 section and the ledger's Open Questions/Conflicts area.
+- **Estimated Effort**: S
+- **Owner Role**: Product Owner (with the user as decider)
+- **Status**: TODO
+
+### Phase Exit Gate
+
+#### Task ID: T-15.X.GATE
+- **Title**: Phase 15's exit criteria, verified
+- **Description**: Restate plan §4b Phase 15's three exit criteria as checks and run them.
+- **Plan source**: §4b Phase 15 Exit Criteria; §12 OQ-2.
+- **Scope**: Verification of the decision record only — this gate checks that the decisions exist and are explicit; it builds nothing.
+- **Variables / Config**: none.
+- **Dependencies**: T-15.SCOPE.01, T-15.SCOPE.02.
+- **Acceptance Criteria**: the plan's three exit criteria, each verified as a check —
+  - Each candidate is recorded as IN (with its own phase sketched) or OUT (with a reason), by the user
+  - The two candidates that contradict §8's recorded non-goals — consolidation and quality management — are resolved explicitly
+  - Nothing is built from this gate without a written decision
+- **Evidence**: the decision record read back: nine candidates, each with a verdict and a reason; the two contradictions each with an explicit resolution; and no task id created from the gate without a written decision.
+- **Estimated Effort**: S
+- **Owner Role**: Product Owner
+- **Status**: TODO
+
+---
+
+## Audit traceability — the 2026-10-10 audit's 43 findings → tasks
+
+Plan §11 maps each finding group to the phase that closes it; this table carries that mapping down to the task ids in this ledger. **The audit's own 43-item text is not in this repository** (it was the input to plan §4b, not an artefact of it), so within a phase a finding is routed to the task(s) whose theme matches §11's theme wording for its group; where a group's theme names several deliverables, the finding is listed against each task that closes it.
+
+| Finding(s) | Phase | Task id(s) that close it | Theme (plan §11) |
+|---|---|---|---|
+| 1 | 7 | T-7.AUTH.01, T-7.AUTH.02 | No authentication — identity was two request headers |
+| 2 | 7 | T-7.SEC.01 (remediated), T-7.AUTH.02 | Header identity recorded as an accepted risk |
+| 11 | 7 | T-7.ADMIN.01, T-7.ADMIN.02, T-7.INST.01 | No user/role administration through the API |
+| 12 | 7 | T-7.ADMIN.03 | No company provisioning |
+| 29 | 7 | T-7.WEB.01, T-7.AUTH.02 | Frontend identity coupling (`COMPANY_ID`/`ACTOR`) |
+| 3 | 8 | T-8.MIG.01, T-8.MIG.02 | Schema created by `create_all`, no migrations |
+| 4 | 8 | T-8.WORK.01, T-8.WORK.02 | No worker and no scheduled work |
+| 5 | 8 | T-8.OBS.01 | 0 `import logging` in `app/` |
+| 6 | 8 | T-8.DELIVERY.01 | Transports never registered; no delivery record |
+| 7 | 8 | T-8.OBS.02 | Health was one endpoint with no dependency check |
+| 8 | 8 | T-8.CFG.01 | `DATABASE_URL` read at first request |
+| 26 | 8 | T-8.WORK.01, T-8.WORK.02 | Background work without a runner recorded |
+| 27 | 8 | T-8.OBS.03, T-8.OPS.01 | Catch-all `500` echoing `type(exc).__name__`; no runbook |
+| 9 | 9 | T-9.EDGE.01 | No TLS, no proxy, published backend port |
+| 10 | 9 | T-9.EDGE.02 | No rate or request-size limits |
+| 16 | 9 | T-9.SECRETS.01 | Secrets with defaults / baked into an image |
+| 20 | 9 | T-9.CRYPTO.01 | Payroll bank details in plaintext |
+| 24 | 9 | T-9.BACKUP.01 | No backup; the compose volume was the only copy |
+| 25 | 9 | T-9.DEPLOY.01 | No deploy jobs and no rollback |
+| 33 | 9 | T-9.DEPLOY.02 | No resource limits or scaling variables |
+| 34 | 9 | T-9.BACKUP.02 | No restore procedure rehearsed |
+| 36 | 9 | T-9.RELEASE.01 | Contract published by hand / drifting from the release |
+| 13 | 10 | T-10.NUM.01 | Documents numbered by the caller, not the server |
+| 14 | 10 | T-10.CLOSE.01 | No fiscal close |
+| 15 | 10 | T-10.DOC.01 | No PDF renditions |
+| 18 | 10 | T-10.AUDIT.01 | Audit trail written but not readable |
+| 19 | 10 | T-10.ATT.01 | No attachments |
+| 17 | 11 | T-11.CONC.01 | Lost updates under concurrent edits |
+| 32 | 11 | T-11.PAGE.01 | Unbounded list routes (21 of 21 unpaginated) |
+| 37 | 11 | T-11.RECON.01 | No bank reconciliation workflow |
+| 38 | 11 | T-11.DEV.01 | POS hardware with no interface |
+| 39 | 11 | T-11.FX.01 | FX rates with no recorded provenance |
+| 40 | 11 | T-11.IDEM.01 | No idempotency on mutating routes |
+| 43 | 11 | T-11.CEIL.01 | 29 in-code ceilings with no disposition |
+| 21 | 12 | T-12.LINT.01, T-12.FE.01 | No linting; the pipeline ran checks only |
+| 22 | 12 | T-12.PKG.01 | Unpinned/unhashed packaging, no type checking |
+| 35 | 12 | T-12.SCAN.01 | No dependency or code scanning |
+| 41 | 12 | T-12.TEST.01, T-12.PROP.01, T-12.E2E.01 | No coverage floor, property or browser tests |
+| 42 | 12 | T-12.DATA.01 | No export or erasure tooling |
+| 28 (shell half) | 13 | T-13.AUTH.01, T-13.SWITCH.01, T-13.ADMIN.01, T-13.AUDIT.01, T-13.ATT.01 | The operational UI did not exist |
+| 30 | 13 | T-13.SHELL.01 | No error/loading/not-found boundaries |
+| 31 | 13 | T-13.I18N.01 | No i18n; hard-coded English admin strings |
+| 23 | 14 | T-14.IMPORT.01, T-14.RUNBOOK.01, T-14.PROV.01 | No legacy onboarding |
+| the audit's informational module list | 15 | T-15.SCOPE.01, T-15.SCOPE.02 | Functional completeness (decision gate) |
+| **28 (domain-screen half)** | — | **no task — deferred by decision** | The domain screens are plan §8's explicit non-goal: "No domain screens for GL, AP, AR, procurement, inventory, manufacturing, payroll, HR or reporting — the shell that makes them possible is Phase 13; the screens are their own later phases." Recorded explicitly here so the finding is not silent, not dropped: it maps to no task in this ledger, and no future `/do-task` run may add one from it without a written decision (Phase 15's rule). |
+
+**Coverage:** 43 of 43 findings routed (finding 28 counted once, with its second half recorded as deferred to no task by decision). Phases 7–15 task totals: Phase 7 has 11 task ids (10 non-gate + `T-7.X.GATE`), Phase 8 has 11, Phase 9 has 10, Phase 10 has 7, Phase 11 has 8, Phase 12 has 10, Phase 13 has 8, Phase 14 has 4, Phase 15 has 3 — 72 in all, 63 of them non-gate, every one `TODO` except Phase 7's nine evidenced `DONE`s.
+
+---
+
 ## Open Questions & Conflicts
 
 ### Resolved 2026-09-17 (written into plan §1, §4, §6, §7, §8 and reflected in this ledger)
@@ -2547,9 +3936,30 @@ A `/do-task` run must land its diff in the repository named in the map above —
 1. **`container_registry`** — **`ghcr.io/paws1234`, public packages** (decided by the user for `T-0.CICD.01`, and the value both pipelines publish to: `ghcr.io/paws1234/erpv1-backend:<commit>` and `ghcr.io/paws1234/erpv1-frontend:<commit>`, both pullable anonymously). The Variables table states it instead of "Not stated". *(Affects `T-0.CICD.01`, `T-0.CICD.02`, `T-0.DEPLOY.03`.)*
 2. **Ledger drift, corrected in `T-0.X.GATE`** — the `## Repositories` table said all three repositories had **no commits yet** and the paragraph called the remotes empty (they have commits); the routing table still called the deployment stack's home undecided although `T-0.DEPLOY.03` had already landed it in the backend repository. All three are now stated as they are.
 
+### Resolved 2026-10-10 (plan §8/§10 — decided with Phases 7–15; closes *Still open* items 2, 4 and 5)
+
+Recorded by the `/execute` handover run of 2026-10-10, which materialised plan §4b's Phases 8–15. The items below were open when this ledger was first emitted; the plan decided them on 2026-10-10, **so they are no longer open**:
+
+1. **Job-queue library** — **`pgqueuer`** (plan §8's Job-queue row, pinned 2026-10-10 with Phase 8). Postgres-backed stands and no Redis is introduced (plan §8 non-goal). This closes *Still open* item 2. *(Affects `T-8.WORK.01`, and the recurring jobs of `T-0.REPORT.01`, `T-3.AR.03`, `T-3.AR.04`, `T-6.OFFLINE.01`, `T-6.OFFLINE.02`.)*
+2. **Deployment target** — a **single Linux host running Docker Compose behind Caddy with automatic TLS**, with off-host `pg_dump` backups (plan §8's Deployment-target and Backup rows, decided 2026-10-10, Phase 9). No Kubernetes, no multi-region, no autoscaling (plan §8 non-goals). This closes *Still open* item 4. *(Affects `T-9.EDGE.01`, `T-9.BACKUP.01`, `T-9.DEPLOY.01`, `T-9.DEPLOY.02`; `T-0.DEPLOY.03`'s stack is what gets deployed.)*
+3. **Home of the compose/deployment stack** — the **backend** repository (plan §8's Compose-stack-home row, disposed 2026-10-10), the place `T-0.DEPLOY.03` already put it. This answers *Still open* item 5's "confirm which". *(Affects `T-0.DEPLOY.03`, `T-0.CICD.01`, `T-0.CICD.02`, `T-9.*`.)*
+4. **Authentication** — built in: email + password, Argon2id, server-side revocable sessions, TOTP MFA (plan §8, decided 2026-10-10, Phase 7); no SSO/OIDC (plan §8 non-goal), and scoped machine tokens stay OQ-6.
+5. **Frontend scope** — the operational and admin shell only; the domain screens are their own later phases (plan §8, decided 2026-10-10). This is the decision that defers the audit's finding 28 domain-screen half to no task (see the audit traceability table).
+
+**What remains open, and it is a per-install variable rather than an unknown:** the **fiscal-year start** — *Still open* item 1 stands. `fiscal_year_start_month` is required per install, the pack refuses to guess (plan §9, §12 OQ-1), and it blocks `T-10.STAT.01`'s statutory artefacts and `T-14.PROV.01`'s fiscal calendar. *Still open* item 3 (the domain defaults: `fx_rate_source`, `approval_thresholds`, `three_way_match_tolerance`, aging buckets, `dunning_levels`, `credit_check_mode`, `mrp_horizon_days`/`mrp_bucket`, `payroll_cutoff_day`, `shift_definitions`, `overtime_rules`, `leave_accrual_rule`, supplier scoring weights, `report_schedule`) is unchanged and stays deferred to the phase that needs each.
+
+### Conflicts recorded 2026-10-10 (recorded, not resolved silently)
+
+Two conflicts surfaced while deriving Phases 8–15. `/execute` records them here rather than picking silently; both need a human answer, and each states the reading the ledger currently takes so the work is not frozen in the meantime.
+
+1. **The ledger's gate rule vs plan §4b's "Phase 8 is parallel with Phase 7".** The *Task ID scheme* above says a phase's `GATE` "must be `DONE` before any task of a later phase may start". Plan §4b says Phase 8's dependencies are **"none (parallel with Phase 7)"**, and its own cut lines say **"Phases 7 and 8 alone clear eight of the ten blockers"** — which only holds if Phase 8 runs while Phase 7 is still open. With `T-7.X.GATE` `TODO`, the two statements cannot both hold. **Reading taken (matching the plan, which is the spec):** Phase 8's tasks carry no Phase 7 dependency and are selectable now; the gate rule is read as *"a later phase that depends on an earlier one may not start before it"*, which is what actually protects the ledger. **To confirm:** whether that narrowing should be written into the scheme, or whether Phase 8 should genuinely wait for `T-7.X.GATE`.
+2. **Phases 12 and 13 depend on each other (a conflict inside the plan itself).** §4b Phase 12's exit criterion 5 requires Playwright to drive **sign-in → MFA → admin → sign-out** — the Phase 13 screens — and it is listed among Phase 12's deliverables, while §4b Phase 13 states its dependency on **Phase 12's harness**. Each phase therefore needs the other, and the "cut at any boundary" promise in §4b's cut lines does not hold across this pair. **Reading taken:** the harness (`T-12.E2E.01`) is built in Phase 12 against the session shell that exists (`T-7.WEB.01` plus `T-13.AUTH.01`) and is **re-run to green over the completed shell when Phase 13 finishes**; the Phase 12 gate reports the E2E criterion as held over the pages that exist, naming the ones that arrive with Phase 13. **To confirm:** whether the E2E criterion is Phase 12's or Phase 13's — it is the only place in Phases 7–15 where the two phases' criteria overlap.
+
 ### Still open
 
 **Recorded 2026-10-10: these five are the whole of what this ledger still owes — no task id is left `TODO`, so this list is the backlog a future run reads, and nothing new starts from here until one of them is decided or new tasks are added.**
+
+> **Update 2026-10-10 (Phases 8–15 materialised — the premise above no longer holds).** `T-7.WEB.01`, `T-7.X.GATE` and every task of Phases 8–15 are now `TODO` and selectable, so ids *are* available. Of the five items below: **2 (queue library), 4 (deployment target) and 5 (compose-stack home) are closed** — see *Resolved 2026-10-10* above, where plan §8/§10 fixed them; **1 (fiscal-year start) remains open** and is a required per-install variable; **3 (the remaining domain defaults) remains deferred** to the phase that needs each. The five are left below unedited as the record of what was open when they were written.
 
 1. **Philippines fiscal year start** — needed by the CoA, period locking, the statements and payroll; it must be confirmed with the pack in `T-0.LOC.01` rather than assumed. *(Affects `T-0.LOC.01`, `T-1.ACCT.01`, `T-1.ACCT.04`, `T-1.ACCT.07`.)*
 2. **Job-queue library** — Postgres-backed is decided; `pgqueuer` vs `procrastinate` is not pinned. *(Affects `T-0.REPORT.01`, `T-0.CICD.01`, `T-3.AR.03`, `T-3.AR.04`, `T-6.OFFLINE.01`, `T-6.OFFLINE.02`.)*
@@ -2562,3 +3972,5 @@ A `/do-task` run must land its diff in the repository named in the map above —
 ---
 
 *Every task above is `DONE` as of 2026-10-10, and no id remains selectable. Statuses are owned by `/do-task` and must not be changed here.*
+
+> **Corrected 2026-10-10 by the Phase 7–15 handover.** Phases 0–6 remain `DONE` as this line records — but the ledger no longer has "no id selectable": `T-7.WEB.01` and `T-7.X.GATE` are `TODO`, and Phases 8–15 were materialised from plan §4b with every task `TODO`. Statuses are still owned by `/do-task`: this handover changed none of them, and no `DONE` was reset.
