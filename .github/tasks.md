@@ -3,7 +3,7 @@
 ## Source
 
 - **Plan**: `.github/plan.md` (read-only; this ledger never mutates it)
-- **Plan sections ingested**: §1 Overview, §2 Module Breakdown (2.1–2.6), §3 Cross-Cutting Concerns, §4 Phases 1–6, §5 Data Model Highlights, §6 Success Metrics, §7 Next Steps
+- **Plan sections ingested**: §1 Overview (including its 8 **Production Principles**, added 2026-10-10), §2 Module Breakdown (2.1–2.6) and the operational module list (7–19) added 2026-10-10, §3 Cross-Cutting Concerns (the original 8 rows plus the 7 added 2026-10-10), §4 Phases 1–6, **§4b Phases 7–15** (added 2026-10-10), §5 Data Model Highlights (including the 13 entities added 2026-10-10), §6 Success Metrics (including the metrics added 2026-10-10), §7 Next Steps, **§8 Decided Configuration Defaults**, **§9 Variables & Configuration**, **§10 Integrations & Externals**, **§11 Findings Traceability**, **§12 Open Questions** — all added or extended 2026-10-10 with Phases 7–15, and ingested by the `4b44da7` regeneration that emitted Phases 7–15 below. This line read "§1 … §7" until 2026-10-11, which is the staleness this run corrects: the body was re-derived when the plan changed, and this header was not.
 - **Goal**: Build a modular, double-entry based ERP platform covering core financial, inventory, supply chain, manufacturing, sales, and human resources operations.
 - **Constraints** (from §1 Architecture Principles — binding on every task):
   - Double-entry ledger at the core of all financial postings
@@ -13,6 +13,18 @@
   - Real-time valuation and stock ledgers
   - Workflow-driven approvals and 3-way matching
   - Offline-capable POS and biometric attendance integration points
+  - API-first: one backend API is designed, contract-published and working before the frontend that consumes it
+  - One container per service, from a single compose file
+  - Separate repositories: `paws1234/ERPbackend` and `paws1234/ERPfrontend`, with the published API contract as their only coupling
+- **Production Principles** (plan §1, added 2026-10-10 — binding on every task from Phase 7 on). Tasks below cite these **by number**, so the numbering is restated here; before 2026-10-11 this header declared only the unnumbered Architecture Principles above, so a reader could not resolve "principle 3" from it:
+  1. **One identity, stated once.** No route reads `X-Actor` or `X-Company-Id` after Phase 7. The authenticated session is the only source of company and actor; an unauthenticated request answers `401`, never `unknown`.
+  2. **The schema evolves by migration, never by `create_all`.** Alembic owns the schema from Phase 8; a new table that arrives without a migration fails the build, and a migrated schema is company-scoped exactly like a `create_all` one.
+  3. **Every unit of background work is scheduled, idempotent, observable and retryable.** A job that ran twice is safe, and the second run is visible as such.
+  4. **Nothing fails silently.** Every failure is logged with a correlation id, answers in the one documented error shape without internals, and increments a counter an operator can see.
+  5. **Operational truth is tested, not asserted.** Readiness, restore, migration upgrade, rate limits and job firing are each proven by a check that would go red if the behaviour broke. Documentation is not evidence.
+  6. **Configuration is validated at startup and read once.** A misconfigured instance refuses to start rather than starting "healthy" and failing per request.
+  7. **Secrets come from the environment, never from a default**, and are rotatable without a rebuild.
+  8. **API-first stands.** A new route is published to the contract artifact before the frontend consumes it.
 - **Cross-cutting approaches** (from §3 — bind all modules):
   - Double-Entry Integrity: all modules post balanced journal entries to GL
   - Multi-Currency: central FX rate service; auto gain/loss calculation
@@ -22,6 +34,13 @@
   - Integrations: payment gateways, biometric devices, barcode printers, email/SMS
   - Security: role-based access control (RBAC) + field-level permissions
   - Reporting: real-time dashboards + scheduled financial & operational reports
+  - **Identity** — server-side sessions (Argon2id credentials, TOTP MFA); the session is the only source of actor and company *(added 2026-10-10 — owned by Phase 7)*
+  - **Schema Evolution** — Alembic migrations; `create_all` only for tests and the baseline; RLS applied by the migration *(added 2026-10-10 — owned by Phase 8)*
+  - **Background Work** — `pgqueuer` (Postgres-backed); a worker container; every job idempotent with a recorded run *(added 2026-10-10 — owned by Phase 8)*
+  - **Observability** — structured JSON logs with correlation ids; liveness/readiness split; `/metrics`; no internals in a `500` *(added 2026-10-10 — owned by Phase 8)*
+  - **Delivery & Messaging** — transports registered from configuration at startup; every attempt recorded and retried *(added 2026-10-10 — owned by Phase 8)*
+  - **Document Control** — server-side gapless numbering per company, document type and fiscal year; PDF renditions; attachments *(added 2026-10-10 — owned by Phase 10)*
+  - **Backup & Recovery** — off-host `pg_dump`, retention, and a rehearsed restore drill against the ledger gate *(added 2026-10-10 — owned by Phase 9)*
 
 ### Decisions recorded 2026-09-17 (plan amended; this ledger synced)
 
@@ -331,9 +350,9 @@ The backend and the frontend live in **separate repositories**. Each has its own
 
 | Repo | Local path (relative to the workspace root) | Remote | State |
 |---|---|---|---|
-| Planning (this one) | `ERPV1/.` | `https://github.com/paws1234/ERPPLANNING.git` | `main` @ `da2c548` — tracks `.github/` (this ledger, the plan, the skills) and the root `.gitignore`; Phase 0 merged except the batch in review |
-| Backend | `ERPV1/ERPbackend` | `https://github.com/paws1234/ERPbackend.git` | `main` @ `b36e79a` — the app, its image, the compose stack and its pipeline (`.github/workflows/backend.yml`); 19 tagged commits of Phase 0 work |
-| Frontend | `ERPV1/ERPfrontend` | `https://github.com/paws1234/ERPfrontend.git` | `main` @ `da7e483` — the Next.js shell, the typed client and its pipeline (`.github/workflows/frontend.yml`) |
+| Planning (this one) | `ERPV1/.` | `https://github.com/paws1234/ERPPLANNING.git` | `main` @ `8edfd20` — tracks `.github/` (this ledger, the plan, the skills) and the root `.gitignore`. **Updated 2026-10-11:** was recorded as `main` @ `da2c548` on 2026-09-17; Phases 0–6 are merged, and `wip/plan-phase7-15` (`8cc75d9`) carries plan §4b, this ledger and the workspace guard |
+| Backend | `ERPV1/ERPbackend` | `https://github.com/paws1234/ERPbackend.git` | `main` @ `a2d0108` — the app, its image, the compose stack and its pipeline (`.github/workflows/backend.yml`). **Updated 2026-10-11:** was recorded as `main` @ `b36e79a` on 2026-09-17; Phases 0–6 are merged on `main`, and the **Phase 7–8 work sits unmerged on `wip/phase7-8-identity-and-operations`** (`f3e7434`, `2488b8a`, `ecce5ff`) |
+| Frontend | `ERPV1/ERPfrontend` | `https://github.com/paws1234/ERPfrontend.git` | `main` @ `dcc918e` — the Next.js shell, the typed client and its pipeline (`.github/workflows/frontend.yml`). **Updated 2026-10-11:** was recorded as `main` @ `da7e483` on 2026-09-17; `wip/phase7-web-shell` (`03b6ca9`) carries `d28f523` — *"T-7.WEB.01 — the frontend session shell, preserved from the working tree"* — and the contract repin |
 
 All three remotes are **public**. `ERPbackend/` and `ERPfrontend/` are **gitignored** in the planning repo — `git check-ignore` confirms both — so they are never committed here, not even as gitlinks. The apps' first commits belong to the Phase 0 packaging tasks (`T-0.DEPLOY.01`, `T-0.DEPLOY.02`). Being public, no `.env`, credential or secret may ever be committed to any of the three.
 
@@ -368,6 +387,8 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 ## Cross-cutting / foundations
 
 > Derived from §3 (Cross-Cutting Concerns) and §7 (Next Steps). §4 does not schedule these, but every phase depends on them, so they form Phase 0.
+>
+> **Added 2026-10-11.** §3 gained seven rows on 2026-10-10 (Identity, Schema Evolution, Background Work, Observability, Delivery & Messaging, Document Control, Backup & Recovery). None of them is a Phase 0 stream — each is owned by Phases 7–10, and this section is left as the Phase 0 derivation §3 stood for when it was emitted. The seven rows are listed in *Source → Cross-cutting approaches* above with their owning phase.
 
 ### Stream: `STACK`
 
@@ -2704,7 +2725,7 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 - **Variables / Config**: `session_ttl_minutes` (720), `session_idle_timeout_minutes` (60).
 - **Dependencies**: T-7.AUTH.01.
 - **Acceptance Criteria**: no route reads `X-Actor` or `X-Company-Id`, and neither appears in the published contract; a request with no cookie, an unknown token, an expired session, an idle session or a disabled user answers `401 unauthenticated` in the one error shape; a caller holding a valid session cannot be moved to another company by any header or body field; the actor recorded in the trail is the session's subject; every existing check still proves the rule it was written for.
-- **Evidence**: `ERPbackend/app/auth.py` (`SESSION_COOKIE`, `NotAuthenticated`, `MfaPending`, `SuspendedCompany`, `current_identity`, `set_session_cookie`, `clear_session_cookie`), `app/api.py` (`context`, `pending_context`, `suspended_context`, `_over_https`), and the handler block that answers each refusal in the one shape. The header path is **gone**, not disabled: `grep -rn "X-Actor\|X-Company-Id" app/` finds nothing.
+- **Evidence**: `ERPbackend/app/auth.py` (`SESSION_COOKIE`, `NotAuthenticated`, `MfaPending`, `SuspendedCompany`, `current_identity`, `set_session_cookie`, `clear_session_cookie`), `app/api.py` (`context`, `pending_context`, `suspended_context`, `_over_https`), and the handler block that answers each refusal in the one shape. The header path is **gone**, not disabled: no route reads `X-Actor` or `X-Company-Id`. **Corrected 2026-10-11:** this line previously claimed `` grep -rn "X-Actor\|X-Company-Id" app/ `` "finds nothing", which does not survive re-running it — the grep returns six lines, five in `app/api.py` (20, 22, 2231, 2448, 4576) and one in `app/auth.py` (4). All six are prose: three are **stale docstrings** that still read as if the headers were live (the module docstring at 20–23, and the pipeline-move docstrings at 2231 and 2448), and two are correct historical references to what was replaced (4576, and `auth.py:4`). The functional claim is what the route sweep asserts and it holds; the evidence wording did not.
   - **a header claims nothing** — `check_auth.py` calls `/companies/current` with no cookie and with both old headers set: `401 unauthenticated` both times.
   - **the session names the company** — the same check signs in and reads `SMOKE`/`AUTH`, and switching needs a membership (`404 unknown_company` for a company the caller does not work in, indistinguishable from one that does not exist so a caller cannot feel out installed tenants).
   - **18 checks migrated, each to the session it already meant** — `tests/identity.py` (new, not a check: it gives an actor a user, a credential, a membership and a real session, and returns the cookie) plus the sites in `check_api_conventions`, `check_backend_image`, `check_bootstrap`, `check_campaigns`, `check_credit_check`, `check_dashboard`, `check_fulfilment`, `check_org_chart`, `check_phase2_exit`, `check_pipeline`, `check_pos_offline`, `check_pos_sale`, `check_pos_shifts`, `check_pos_tender`, `check_pricing`, `check_quotations`, `check_rfq_responses`, `check_security`, `check_security_review`, `check_supplier_portal`. `check_backend_image` now logs in **inside the container** and uses the cookie, so the image check proves the container authenticates rather than merely answering.
@@ -2827,7 +2848,7 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 - **Owner Role**: Security Engineer
 - **Status**: DONE
 
-### Stream: `WEB` — the frontend session shell (§4b Phase 7, findings 28 and 29 — **not started**)
+### Stream: `WEB` — the frontend session shell (§4b Phase 7, findings 28 and 29 — **implementation on a `wip` branch; evidence outstanding**)
 
 #### Task ID: T-7.WEB.01
 - **Title**: The shell signs in, survives a reload and signs out
@@ -2837,7 +2858,7 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 - **Variables / Config**: none.
 - **Dependencies**: T-7.AUTH.02, T-7.AUTH.03, T-7.AUTH.04.
 - **Acceptance Criteria**: signing in sets a session the shell carries across a reload; an expired or revoked session lands on the sign-in screen with the reason shown; an MFA-owing session is asked for its code and reaches nothing else; signing out returns to the sign-in screen. The frontend repository's own `npm run check` stays green.
-- **Evidence**: **Not started.** The contract the shell builds against has been republished (`contract/v1/openapi.json`, with `POST /auth/login` and the session payload), so this id is unblocked; nothing in `ERPfrontend/` has been changed by Phase 7.
+- **Evidence**: **Not met — no evidence is claimed, and the status stays `TODO`.** The contract the shell builds against has been republished (`contract/v1/openapi.json`, with `POST /auth/login` and the session payload), so this id is unblocked. **Corrected 2026-10-11:** this line previously read *"nothing in `ERPfrontend/` has been changed by Phase 7"*, which is no longer true — `ERPfrontend`'s branch `wip/phase7-web-shell` carries commit `d28f523` (*"wip: T-7.WEB.01 — the frontend session shell, preserved from the working tree"*), and both files the Description names, `app/login/page.tsx` and `lib/session.ts`, are present on it, unmerged. Presence is not evidence: nothing here has been driven against the real API and `npm run check` has not been observed green for it, so the acceptance criteria are unproven.
   - **Expected proof when it lands** (recorded so the id can be dispatched on evidence and nothing more): `ERPfrontend`'s own `npm run check` green — the same command `T-6.X.GATE` already runs against the sibling checkout — **plus** the sign-in flow itself: sign in → reload carries the session → sign out returns to the sign-in screen, driven against the real API. A separate agent is implementing this id now; **the status stays `TODO` in this ledger until `/do-task` records that evidence**, and no part of this task's evidence is claimed by Phase 7's other tasks.
 - **Estimated Effort**: M
 - **Owner Role**: Frontend Engineer
@@ -2870,6 +2891,8 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 ## Phase 8 — Platform Operations (plan §4b, added 2026-10-10)
 
 > Materialised by the `/execute` handover run of 2026-10-10. Every task is `TODO`; statuses belong to `/do-task`. Phase 8's dependencies are **none** (plan §4b states it runs parallel with Phase 7), so its tasks are selectable now.
+>
+> **Drift recorded 2026-10-11 — the module code exists; the evidence does not.** Every task below is still `TODO` and this run changed none of them, but a reader of the ledger alone would wrongly conclude Phase 8 is untouched. On `ERPbackend`'s unmerged branch `wip/phase7-8-identity-and-operations` (commits `2488b8a` *"wip: Phase 7 identity and Phase 8 operations, preserved from the working tree"* and `ecce5ff` *"T-8 gates: the four red checks are green on the Phase 7–8 tree"*) the deliverables behind `T-8.MIG.01`, `T-8.MIG.02`, `T-8.CFG.01`, `T-8.WORK.01`, `T-8.WORK.02`, `T-8.OBS.01`, `T-8.OBS.02`, `T-8.OBS.03` and `T-8.DELIVERY.01` are present as files — `alembic.ini`, `migrations/` (including `versions/0001_baseline.py`), `app/config.py`, `app/queue.py`, `app/worker.py`, `app/schedule.py`, `app/observability.py`, `app/delivery.py`, and the compose and `Dockerfile` changes. **What is absent is the proof each task's acceptance criteria require**: no check for migrations, configuration, the worker, schedules, observability or delivery exists under `tests/`, and `OPERATIONS.md` (T-8.OPS.01) is not in the tree at all. A task is `DONE` only where its evidence is recorded, so all eleven stay `TODO` — the statuses belong to `/do-task`, which must prove not-already-implemented before it writes anything, and this record is what it should read first.
 
 ### Stream: `MIG` — schema evolution (§4b Phase 8, finding 3)
 
@@ -3954,6 +3977,14 @@ Two conflicts surfaced while deriving Phases 8–15. `/execute` records them her
 
 1. **The ledger's gate rule vs plan §4b's "Phase 8 is parallel with Phase 7".** The *Task ID scheme* above says a phase's `GATE` "must be `DONE` before any task of a later phase may start". Plan §4b says Phase 8's dependencies are **"none (parallel with Phase 7)"**, and its own cut lines say **"Phases 7 and 8 alone clear eight of the ten blockers"** — which only holds if Phase 8 runs while Phase 7 is still open. With `T-7.X.GATE` `TODO`, the two statements cannot both hold. **Reading taken (matching the plan, which is the spec):** Phase 8's tasks carry no Phase 7 dependency and are selectable now; the gate rule is read as *"a later phase that depends on an earlier one may not start before it"*, which is what actually protects the ledger. **To confirm:** whether that narrowing should be written into the scheme, or whether Phase 8 should genuinely wait for `T-7.X.GATE`.
 2. **Phases 12 and 13 depend on each other (a conflict inside the plan itself).** §4b Phase 12's exit criterion 5 requires Playwright to drive **sign-in → MFA → admin → sign-out** — the Phase 13 screens — and it is listed among Phase 12's deliverables, while §4b Phase 13 states its dependency on **Phase 12's harness**. Each phase therefore needs the other, and the "cut at any boundary" promise in §4b's cut lines does not hold across this pair. **Reading taken:** the harness (`T-12.E2E.01`) is built in Phase 12 against the session shell that exists (`T-7.WEB.01` plus `T-13.AUTH.01`) and is **re-run to green over the completed shell when Phase 13 finishes**; the Phase 12 gate reports the E2E criterion as held over the pages that exist, naming the ones that arrive with Phase 13. **To confirm:** whether the E2E criterion is Phase 12's or Phase 13's — it is the only place in Phases 7–15 where the two phases' criteria overlap.
+3. **Phase 7's exit criterion 7 and Phase 13's exit criterion 1 cover the same frontend (recorded 2026-10-11).** Criterion 7 is *"the frontend signs in, survives a reload, and signs out"* — `T-7.WEB.01`; Phase 13's criterion 1 is *"sign in, MFA, expiry, sign out and company switch all work against the real API"* — `T-13.AUTH.01`. The second reads wider than the first, and the pair carries the same double-dependency shape as conflict 2, one phase earlier. **Reading taken:** `T-7.WEB.01` builds the session shell and is answered against criterion 7; `T-13.AUTH.01` then answers the fuller Phase 13 criterion against the completed shell, and neither id is dropped. The metrics table above already names both ids against the Identity metric. **To confirm:** whether criterion 7 is discharged by `T-7.WEB.01` alone or is deliberately carried forward into `T-13.AUTH.01` — the plan states it in both phases and does not say which owns it.
+
+### Deviations recorded 2026-10-11 (plan wording vs the tree — recorded, not resolved silently)
+
+Two of §4b Phase 7's named deliverables do not match what the tree holds. They are recorded rather than silently corrected, because the plan is the spec: `/execute` may not mutate it, and this ledger's Phase 7 `IN` scope quotes its deliverable list verbatim. Either the plan is amended to say what was built, or the deviation is closed in code — a human answers, and the ledger does not pick.
+
+1. **`app/admin.py` — named by the plan, never created.** §4b Phase 7 lists `app/admin.py` (users, roles, capability grants, field restrictions, company create/suspend), and this ledger's Phase 7 `IN` scope repeats the name, but no such module exists anywhere in `ERPbackend`. The work landed in `app/api.py` instead: `T-7.ADMIN.01`'s evidence records `list_users`, `create_user_route`, `set_user_password`, `set_user_status`, `_member_of` and `_user_out` there, with the routes `{BASE}/admin/users`, `/admin/roles`, `/admin/assignments`, `/admin/roles/{code}/grants` and `/admin/roles/{code}/restrictions`. `T-7.ADMIN.01`–`03` are `DONE` on that evidence, so this is a naming deviation, not missing work. **To confirm:** whether §4b Phase 7's deliverable list should name `app/api.py` in place of `app/admin.py`.
+2. **`app/security.py` — named by the plan, owned by no Phase 7 task.** §4b Phase 7 lists *"`app/security.py` taking its subject from the session"* and this ledger's Phase 7 `IN` scope repeats it, but no Phase 7 task names the module in its scope or evidence, and no Phase 7 commit modified it — its only history is `bb17a71` (`T-0.SEC.01`) and `72d3439` (`T-3.SALES.02`). The deliverable was met at the boundary rather than in the file: `app/security.py` takes its **subject as a parameter**, so `T-7.AUTH.02`'s rewritten `context()` supplies the session's subject and nothing in the module had to change. Its docstring is correspondingly stale — it still reads *"the actor identity arrives with the request"* and *"Nothing here chooses an authentication provider or a session mechanism"*. **To confirm:** whether the plan should say the subject is supplied by the caller rather than read by the module, and whether the stale docstring warrants its own task or belongs to the next change in that file.
 
 ### Still open
 
@@ -3974,3 +4005,5 @@ Two conflicts surfaced while deriving Phases 8–15. `/execute` records them her
 *Every task above is `DONE` as of 2026-10-10, and no id remains selectable. Statuses are owned by `/do-task` and must not be changed here.*
 
 > **Corrected 2026-10-10 by the Phase 7–15 handover.** Phases 0–6 remain `DONE` as this line records — but the ledger no longer has "no id selectable": `T-7.WEB.01` and `T-7.X.GATE` are `TODO`, and Phases 8–15 were materialised from plan §4b with every task `TODO`. Statuses are still owned by `/do-task`: this handover changed none of them, and no `DONE` was reset.
+
+> **Reconciled 2026-10-11 by `/execute` — a ledger-only pass. `plan.md` was not mutated, no status was changed, and no task was added or removed.** The header was brought up to date with what the ledger body already contained, because it had been left describing the pre-`4b44da7` plan: `## Source` now lists every ingested section (§1–§12, including **§4b** and §8–§12), §1's eight **Production Principles** are restated so the *"principle N"* citations throughout the tasks resolve, §3's seven rows added 2026-10-10 are listed against their owning phases, the Phase 0 note records that they are not Phase 0 streams, and the `## Repositories` state column is corrected to each repository's current `main` (`8edfd20` / `a2d0108` / `dcc918e`) with the unmerged `wip/*` branches named. Two evidence claims that did not survive re-running were corrected in place — `T-7.AUTH.02`'s *"grep finds nothing"* and `T-7.WEB.01`'s *"nothing in `ERPfrontend/` has been changed"*. Three records were added: Phase 8's unmerged implementation (drift), the `app/admin.py` / `app/security.py` plan-vs-tree deviations, and the Phase 7 ↔ Phase 13 criterion overlap (conflict 3). Two `TODO` ids have implementation on unmerged branches — `T-7.WEB.01` (`ERPfrontend` @ `wip/phase7-web-shell`) and most of Phase 8 (`ERPbackend` @ `wip/phase7-8-identity-and-operations`) — so a `/do-task` run must start from that drift record rather than from an empty tree. The open questions are unchanged and still need a human answer.
