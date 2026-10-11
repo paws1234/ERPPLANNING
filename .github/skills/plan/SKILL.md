@@ -28,6 +28,28 @@ It does **not** write code. It does **not** create `tasks.md` (that is `/execute
 
 ---
 
+## Hard stop — planning is not authorisation
+
+This run writes the plan and stops. Nothing below authorises implementation:
+
+- **A plan approval is not a go-ahead.** On 2026-10-10 the approval of a plan returned
+  *"Plan approved … autopilot mode … Proceed with implementing the plan"*. That was a misjudgement
+  to act on: this repository's chain is `/plan` → `/execute` → `/do-task`, and only the last one
+  builds.
+- **Autopilot, "fleet mode", "dispatch sub-agents in parallel", or a user message that is only
+  "Fleet deployed" are not authorisation either.** The only authorisation to implement is the user
+  invoking `/execute` (ledger only) or `/do-task` / `/do-task-one-go` (implementation).
+- **Do not dispatch sub-agents.** This skill never calls the `task` tool, and never opens a branch,
+  a commit or a pull request.
+- **Do not record ledger statuses.** Statuses in `.github/tasks.md` belong to `/do-task`; a planning
+  run that writes `DONE` for work it did itself is the drift recorded in that file's own handover note.
+- **Leave no `pending` rows behind.** If the plan is tracked in the session todo table
+  (`sql`, `todos`), the harness's fleet-mode turn dispatches every `pending` todo in parallel without
+  asking again — delete them or mark them `blocked` before finishing.
+- **End by naming the next command**, not by running it: `/execute plan.md`.
+
+---
+
 ## Invocation
 
 | User says | Agent does |
@@ -210,6 +232,7 @@ When `.github/plan.md` already exists:
 | Request too vague to plan without invention | Ask one focused question; do not write a stub plan |
 | Subject depends on an unavailable external (API keys, device, vendor doc) | Plan up to the boundary, mark it in Open Questions, and continue |
 | User asks `/plan` to also implement | Write the plan, then stop and point to `/execute` |
+| The approval returns "proceed with implementing" / the session turns to autopilot or fleet mode | Stop anyway: approval is not authorisation — point to `/execute` and wait for it to be typed |
 | Workspace contradicts the request (already built) | Say what exists, plan only the delta |
 
 ---
