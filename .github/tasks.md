@@ -2923,10 +2923,16 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 - **Variables / Config**: `DATABASE_URL` (required).
 - **Dependencies**: none.
 - **Acceptance Criteria**: `alembic upgrade head` on an empty database succeeds; the resulting schema matches the `create_all` schema table by table; `alembic check` reports 0 drift; a second `upgrade head` changes nothing; the build fails when a model arrives with no migration (principle 2 — §6's Schema metric).
-- **Evidence**: `ERPbackend/alembic.ini`, `ERPbackend/migrations/` and the check that compares the migrated schema with a `create_all` schema table by table and runs `alembic check`.
+- **Evidence**: `ERPbackend/alembic.ini`, `ERPbackend/migrations/` and **`ERPbackend/tests/check_migrations.py`** — the check that compares the migrated schema with a `create_all` schema table by table and runs `alembic check`. Written 2026-10-12 by the batch `T-8.MIG.01 → T-8.CFG.01 → T-8.MIG.02`: **the drift note above is what sent the run here** — the module code existed and the proof did not, so this id's whole diff *is* the proof (one new file; no production line changed).
+  - **the migration builds the models' schema** — `alembic upgrade head`, as the operator's own command in its own process against an empty database, leaves **150** tables. Compared table by table, column by column, policy by policy and trigger by trigger against a `create_all` schema the check builds in a second database: **145** model tables, no difference. The five the models do not declare are printed rather than absorbed — `alembic_version`, `pgqueuer`, `pgqueuer_log`, `pgqueuer_schedules`, `pgqueuer_statistics`.
+  - **no drift** — `alembic check` against the migrated schema reports no new upgrade operations.
+  - **a second `upgrade head` changes nothing** — the catalog snapshot taken after it is identical to the one taken before it, which is what `python -m app.bootstrap` running twice needs (T-8.MIG.02).
+  - **a model with no migration is a red build** — driven with the real command, not with this file's reading of it: a copy of the tree carrying one extra model (`drift_probe`) makes `alembic check` exit non-zero and name it. The copy is deliberate, so the tree under test is never written to.
+  - **two databases of its own.** The comparison needs two schemas at once and `migrations/env.py` scopes everything to `public`, so two schemas cannot share one database. `DATABASE_URL` is used to *reach the server*; the database it names is never read or written, which is what makes this check safe to run beside the others. Both throwaways are dropped in a `finally` — verified: no `erpv1_migrated_*` or `erpv1_create_all_*` is left behind. `ponytail` in the file records the ceiling (it needs `CREATEDB`).
+  - **the check can fail, and was made to.** Replayed on purpose with `migrations/env.py`'s replay of the metadata's own `after_create` listeners removed, the comparison has to catch the DDL `alembic check` cannot see; four deliberate differences (a dropped policy, a dropped trigger, a dropped column, row-level security switched off) were each reported by name, and the check exited non-zero.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer / DBA
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-8.MIG.02
 - **Title**: Row-level scoping applied by the migration, and the install runs on top of it
