@@ -3049,10 +3049,15 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 - **Variables / Config**: `readiness_timeout_seconds` (3 *[proposed]*).
 - **Dependencies**: T-8.CFG.01.
 - **Acceptance Criteria**: readiness answers `503` within the timeout when the database is stopped and `200` when it returns (within 5 s — §6); liveness stays `200` throughout; the two routes are the only health routes, and the contract names both.
-- **Evidence**: the two routes in `ERPbackend/app/api.py` and the check that stops and restarts the database and times both answers.
+- **Evidence**: **Met — 2026-10-12, the batch `T-8.WORK.01 → T-8.OBS.03`.** The two routes and `_readiness_engine`'s deadline (`connect_timeout` plus `statement_timeout`, both from `readiness_timeout_seconds`) already stood on `main`, so the missing slice was the proof and the whole diff is **`ERPbackend/tests/check_health.py`** — no production line changed.
+  - **The outage is the check's own, stated plainly rather than implied.** No privilege can stop a shared scratch Postgres for one check, and stopping one for everyone would break the pipeline's own loop. The application is therefore pointed at a small **TCP door in front of Postgres** — `DATABASE_URL` is rewritten to the door's port *before* the application is imported, which is the one moment it can be, since the configuration is read once — so the check can make the address **refuse** (nothing listening), make it **accept and never answer** (the case the deadline exists for), and put it back **on the same port** (so "it returned" is the same address answering, not a second database). No container is stopped and no other check on the server is touched.
+  - **Observed**, in one run: `health` is exactly `/api/v1/health` and `/api/v1/ready` out of **81** route paths — no `/healthz`, `/livez`, `/readyz` or `/ping` alias exists — and the served contract names both. Readiness `200` in **74 ms** with `database` and `migrations` both reported ok; the address **refusing** → `503` in **130 ms** with liveness still `200`; the address **accepting and never answering** → `503` in **3.0 s** with the deadline at **3 s** and liveness still `200`; the address **back** → `200` in **15 ms**.
+  - **Negative probes.** With the door made to forward instead of hang, the check reports `readiness is 200 against a database that hangs` — so the outage case tests an outage rather than passing on any answer. The hung case's timing is asserted **two-sided** (at least half the deadline, at most the deadline plus a small slack), so a connection that failed instantly would fail it as well as one that outlived the deadline.
+  - **The pipeline ran locally**: the workflow's own loop over `tests/check_*.py` (130 checks) plus the `check_ledger_integrity.py` gate, all green against a scratch `erpv1_checks` database, 351 s.
+  - **The diff was read cold**: one new check file; it drives the app's own route and the app's own readiness engine through the real ASGI stack instead of calling `observability.readiness()` directly, and the door is commented as the simulation it is rather than passed off as a database.
 - **Estimated Effort**: S
 - **Owner Role**: Backend Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-8.OBS.03
 - **Title**: `500` error hygiene and the `/metrics` surface
