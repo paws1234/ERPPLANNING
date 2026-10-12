@@ -2988,10 +2988,16 @@ The two-repository split above stands. Every id added by plan §4b routes as fol
 - **Variables / Config**: `queue_library` (`pgqueuer`), `worker_concurrency` (4 *[proposed]*); the reporting runner, dunning, recurring billing, offline POS sync and biometric pull are the existing callers.
 - **Dependencies**: T-8.CFG.01, T-8.MIG.02.
 - **Acceptance Criteria**: the worker container is in the stack and starts against the migrated schema; a job enqueued produces exactly one effect when a run is processed; the library is `pgqueuer` and no Redis is introduced (plan §8 non-goal).
-- **Evidence**: `ERPbackend/app/queue.py`, `ERPbackend/app/worker.py`, the `worker` service in `ERPbackend/docker-compose.yml`, the refreshed dependency locks, and the check that brings the stack up and observes a job processed.
+- **Evidence**: **Met — 2026-10-12, the batch `T-8.WORK.01 → T-8.OBS.03`.** The module code this id names already stood on `main` when the run started (`app/queue.py`, `app/worker.py`, the `worker` service in `docker-compose.yml`, and the `pgqueuer==1.5.0` pin in `requirements.in` and both locks), so the missing slice was the proof and the whole diff is **`ERPbackend/tests/check_worker.py`** — no production line changed. It reads:
+  - **The worker starts against the migrated schema.** `alembic upgrade head`, the operator's own command, leaves the queue's four own tables (`pgqueuer`, `pgqueuer_log`, `pgqueuer_statistics`, `pgqueuer_schedules`), and `python -m app.worker --check` — the container's own command, in its own process — exits `0` and reports both real jobs. **Negative probe: the four tables dropped, `--check` exits `1` naming them**, so the criterion is asserted rather than assumed.
+  - **A job enqueued produces exactly one effect when a run is processed.** `purge_expired_sessions` is enqueued on the real queue (`queue.enqueue`) and consumed by the worker's own manager in its own drain mode (`queue.drain`): the one lapsed session is deleted, the live one is untouched, and exactly **one** `JobRun` row is left, `succeeded`. **Negative probe: enqueue twice and the run leaves two rows**, which the check rejects.
+  - **The library is `pgqueuer` and no Redis.** `SETTINGS.queue_library` is `pgqueuer`, the pin is in `requirements.in` and both locks, no manifest asks for Redis, and no module imports it.
+  - **The container half is `check_compose_stack.py`'s** (already green: four services, the worker on the backend's own image with `python -m app.worker`); that check builds both repositories' images and is excluded from the pipeline by name, which is why this id's pipeline-runnable proof is `check_worker.py`.
+  - **The pipeline ran locally**: the workflow's own loop over `tests/check_*.py` (130 checks, the three CI exclusions excluded for the same reasons) plus the `check_ledger_integrity.py` gate, against a scratch `erpv1_checks` database — all green, 332 s.
+  - **The diff was read cold** — one new check file, no production change; it reuses the repository's helpers throughout (`queue.connected`/`enqueue`/`drain`/`runs_for`, `identity.create_user`) rather than reaching past them.
 - **Estimated Effort**: L
 - **Owner Role**: Backend Engineer / Platform Engineer
-- **Status**: TODO
+- **Status**: DONE
 
 #### Task ID: T-8.WORK.02
 - **Title**: Every unit of background work scheduled, idempotent, recorded and retryable
